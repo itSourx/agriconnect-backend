@@ -13,6 +13,21 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+
+
+    // Endpoint pour récupérer tous les produits par profile
+    @Get('by-profile/:profile')
+    async findAllByProfile(@Param('profile') profile: string): Promise<any[]> {
+      return this.usersService.findAllByProfile(profile);
+    }
+  
+
+  // Nouvelle route pour rechercher un utilisateur  par email
+  @Get('email/:email')
+  async findOneByEmail(@Param('email') email: string): Promise<any> {
+    return this.usersService.findOneByEmail(email);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);

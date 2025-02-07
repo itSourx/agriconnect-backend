@@ -4,6 +4,8 @@ export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
     findAll(): Promise<any[]>;
+    findAllByProfile(profile: string): Promise<any[]>;
+    findOneByEmail(email: string): Promise<any>;
     findOne(id: string): Promise<any>;
     create(createUserDto: CreateUserDto): Promise<any>;
     register(createUserDto: CreateUserDto): Promise<any>;

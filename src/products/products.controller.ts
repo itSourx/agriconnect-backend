@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ProductsService } from './products.service';
+//import { CreateUserDto } from './create-user.dto';
+
 
 @Controller('products')
 export class ProductsController {
@@ -11,6 +13,12 @@ export class ProductsController {
   async findAll() {
     return this.productsService.findAll();
   }
+  // Endpoint pour récupérer tous les produits par type
+  @Get('by-category/:category')
+  async findAllByCategory(@Param('category') category: string): Promise<any[]> {
+    return this.productsService.findAllByCategory(category);
+  }
+
 
   @Get(':id')
   async findOne(@Param('id') id: string) {

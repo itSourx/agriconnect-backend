@@ -16,7 +16,12 @@ export class ProfilesController {
     return this.profilesService.findOneByType(type);
   }
 
-
+  // Endpoint pour récupérer tous les profils par type
+  @Get('by-type/:type')
+  async findAllByType(@Param('type') type: string): Promise<any[]> {
+    return this.profilesService.findAllByType(type);
+  }
+  
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.profilesService.findOne(id);

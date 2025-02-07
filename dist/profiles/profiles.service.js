@@ -68,6 +68,27 @@ let ProfilesService = class ProfilesService {
             return null;
         }
     }
+    async findAllByType(type) {
+        try {
+            const response = await axios_1.default.get(this.getUrl(), {
+                headers: this.getHeaders(),
+                params: {
+                    filterByFormula: `({type}="${type}")`,
+                },
+            });
+            const profiles = response.data.records.map((profile) => {
+                if (Array.isArray(profile.fields.type)) {
+                    profile.fields.type = profile.fields.type[0];
+                }
+                return profile;
+            });
+            return profiles;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des profils par type :', error);
+            throw new Error('Impossible de récupérer les profils.');
+        }
+    }
 };
 exports.ProfilesService = ProfilesService;
 exports.ProfilesService = ProfilesService = __decorate([

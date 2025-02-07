@@ -24,6 +24,12 @@ let UsersController = class UsersController {
     async findAll() {
         return this.usersService.findAll();
     }
+    async findAllByProfile(profile) {
+        return this.usersService.findAllByProfile(profile);
+    }
+    async findOneByEmail(email) {
+        return this.usersService.findOneByEmail(email);
+    }
     async findOne(id) {
         return this.usersService.findOne(id);
     }
@@ -47,6 +53,20 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('by-profile/:profile'),
+    __param(0, (0, common_1.Param)('profile')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findAllByProfile", null);
+__decorate([
+    (0, common_1.Get)('email/:email'),
+    __param(0, (0, common_1.Param)('email')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findOneByEmail", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

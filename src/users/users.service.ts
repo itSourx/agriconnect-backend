@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
@@ -37,7 +37,7 @@ private async verifyPassword(storedHash: string, plainTextPassword: string): Pro
   return bcrypt.compare(plainTextPassword, storedHash);
 }*/
 
-async findAll(page = 1, perPage = 10): Promise<any[]> {
+async findAll(page = 1, perPage = 20): Promise<any[]> {
   const offset = (page - 1) * perPage;
   const response = await axios.get(this.getUrl(), {
     headers: this.getHeaders(),
@@ -49,6 +49,22 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
   return response.data.records;
 }
 
+// Récupérer tous les utilisateurs filtrés par profil
+  async findUsersByProfile(profileId: string): Promise<any[]> {
+    try {
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          filterByFormula: `({profile}="${profileId}")`, // Filtrer par ID de profil
+        },
+      });
+
+      return response.data.records;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+      throw new Error('Impossible de récupérer les utilisateurs.');
+    }
+  }
 
   // Récupérer un utilisateur par ID
   async findOne(id: string): Promise<any> {
@@ -66,9 +82,19 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
         },
       });
 
-      if (response.data.records.length > 0) {
+      /*if (response.data.records.length > 0) {
         return response.data.records[0];
-      }
+      }*/
+      if (response.data.records.length > 0) {
+        const user = response.data.records[0];
+    
+       // Normalisez le champ "email" pour s'assurer qu'il est une chaîne de texte
+      if (Array.isArray(user.fields.email)) {
+        user.fields.type = user.fields.email[0]; // Prenez le premier élément du tableau
+        }
+      
+          return user;
+        } 
 
       return null; // Aucun utilisateur trouvé avec cet email
     } catch (error) {
@@ -171,19 +197,35 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
       throw new Error('Impossible de mettre à jour l’utilisateur.');
     }
   }
-  /*async update(id: string, data: any): Promise<any> {
-    const response = await axios.patch(
-      `${this.getUrl()}/${id}`,
-      { fields: data },
-      { headers: this.getHeaders() }
-    );
-    return response.data;
-  }*/
-
 
   // Supprimer un utilisateur
   async delete(id: string): Promise<any> {
     const response = await axios.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
     return response.data;
   }
+    // Récupérer tous les utilisateurs  correspondant à un profil donné
+    async findAllByProfile(profile: string): Promise<any[]> {
+      try {
+        const response = await axios.get(this.getUrl(), {
+          headers: this.getHeaders(),
+          params: {
+            filterByFormula: `({profile}="${profile}")`, // Filtrer par profil d'utilisateur
+          },
+        });
+  
+        // Normalisez les champs "catégory" si nécessaire
+        const users = response.data.records.map((user) => {
+          if (Array.isArray(user.fields.profile)) {
+            user.fields.profile = user.fields.profile[0]; // Prenez le premier élément du tableau
+          }
+          return user;
+        });
+  
+        return users; // Retourne tous les enregistrements correspondants
+      } catch (error) {
+        console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+        throw new Error('Impossible de récupérer les utilisateurs.');
+      }
+    }
+
 }

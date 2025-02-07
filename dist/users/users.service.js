@@ -36,7 +36,7 @@ let UsersService = class UsersService {
         const saltRounds = 10;
         return await bcrypt.hash(password, saltRounds);
     }
-    async findAll(page = 1, perPage = 10) {
+    async findAll(page = 1, perPage = 20) {
         const offset = (page - 1) * perPage;
         const response = await axios_1.default.get(this.getUrl(), {
             headers: this.getHeaders(),
@@ -46,6 +46,21 @@ let UsersService = class UsersService {
             },
         });
         return response.data.records;
+    }
+    async findUsersByProfile(profileId) {
+        try {
+            const response = await axios_1.default.get(this.getUrl(), {
+                headers: this.getHeaders(),
+                params: {
+                    filterByFormula: `({profile}="${profileId}")`,
+                },
+            });
+            return response.data.records;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+            throw new Error('Impossible de récupérer les utilisateurs.');
+        }
     }
     async findOne(id) {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
@@ -60,7 +75,11 @@ let UsersService = class UsersService {
                 },
             });
             if (response.data.records.length > 0) {
-                return response.data.records[0];
+                const user = response.data.records[0];
+                if (Array.isArray(user.fields.email)) {
+                    user.fields.type = user.fields.email[0];
+                }
+                return user;
             }
             return null;
         }
@@ -136,6 +155,27 @@ let UsersService = class UsersService {
     async delete(id) {
         const response = await axios_1.default.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
         return response.data;
+    }
+    async findAllByProfile(profile) {
+        try {
+            const response = await axios_1.default.get(this.getUrl(), {
+                headers: this.getHeaders(),
+                params: {
+                    filterByFormula: `({profile}="${profile}")`,
+                },
+            });
+            const users = response.data.records.map((user) => {
+                if (Array.isArray(user.fields.profile)) {
+                    user.fields.profile = user.fields.profile[0];
+                }
+                return user;
+            });
+            return users;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+            throw new Error('Impossible de récupérer les utilisateurs.');
+        }
     }
 };
 exports.UsersService = UsersService;

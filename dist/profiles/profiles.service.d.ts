@@ -10,4 +10,5 @@ export declare class ProfilesService {
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     findOneByType(type: string): Promise<any | null>;
+    findAllByType(type: string): Promise<any[]>;
 }
