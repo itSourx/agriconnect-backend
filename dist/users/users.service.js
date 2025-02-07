@@ -32,9 +32,35 @@ let UsersService = class UsersService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
+    async verifyPassword(storedHash, plainTextPassword) {
+        return bcrypt.compare(plainTextPassword, storedHash);
+    }
     async hashPassword(password) {
         const saltRounds = 10;
         return await bcrypt.hash(password, saltRounds);
+    }
+    async changePassword(userId, oldPassword, newPassword) {
+        const user = await this.findOne(userId);
+        if (!user) {
+            throw new common_1.UnauthorizedException('Utilisateur introuvable.');
+        }
+        const passwordHash = user.fields.password;
+        const isPasswordValid = await this.verifyPassword(passwordHash, oldPassword);
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException('Ancien mot de passe incorrect.');
+        }
+        if (newPassword.length < 6) {
+            throw new Error('Le nouveau mot de passe doit contenir au moins 6 caractères.');
+        }
+        const hashedNewPassword = await this.hashPassword(newPassword);
+        try {
+            const response = await axios_1.default.patch(`${this.getUrl()}/${userId}`, { fields: { password: hashedNewPassword } }, { headers: this.getHeaders() });
+            return { message: 'Mot de passe mis à jour avec succès.' };
+        }
+        catch (error) {
+            console.error('Erreur lors de la mise à jour du mot de passe :', error);
+            throw new Error('Impossible de mettre à jour le mot de passe.');
+        }
     }
     async findAll(page = 1, perPage = 20) {
         const offset = (page - 1) * perPage;

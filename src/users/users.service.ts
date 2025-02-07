@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
@@ -27,11 +27,58 @@ export class UsersService {
     return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
   }
 
+  // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké
+  private async verifyPassword(storedHash: string, plainTextPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainTextPassword, storedHash);
+  }
+
   // Hacher le mot de passe avant de créer un utilisateur
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 10; // Nombre de tours de hachage (recommandé : 10)
     return await bcrypt.hash(password, saltRounds);
   }
+
+  // Changer le mot de passe d'un utilisateur
+    async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<any> {
+      // Récupérer l'utilisateur actuel
+      const user = await this.findOne(userId);
+  
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur introuvable.');
+      }
+  
+      // Vérifier que l'ancien mot de passe est correct
+      const passwordHash = user.fields.password; // Champ contenant le mot de passe haché
+      const isPasswordValid = await this.verifyPassword(passwordHash, oldPassword);
+  
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Ancien mot de passe incorrect.');
+      }
+  
+      // Valider le nouveau mot de passe
+      if (newPassword.length < 6) {
+        throw new Error('Le nouveau mot de passe doit contenir au moins 6 caractères.');
+      }
+  
+      // Hacher le nouveau mot de passe
+      const hashedNewPassword = await this.hashPassword(newPassword);
+  
+      // Mettre à jour le mot de passe dans Airtable
+      try {
+        const response = await axios.patch(
+          `${this.getUrl()}/${userId}`,
+          { fields: { password: hashedNewPassword } },
+          { headers: this.getHeaders() }
+        );
+  
+        return { message: 'Mot de passe mis à jour avec succès.' };
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du mot de passe :', error);
+        throw new Error('Impossible de mettre à jour le mot de passe.');
+      }
+    }
+
+    
   /* // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké dans Airtable
 private async verifyPassword(storedHash: string, plainTextPassword: string): Promise<boolean> {
   return bcrypt.compare(plainTextPassword, storedHash);

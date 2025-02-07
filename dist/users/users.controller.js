@@ -16,6 +16,7 @@ exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
 const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./create-user.dto");
+const change_password_dto_1 = require("./change-password.dto");
 const auth_guard_1 = require("../auth/auth.guard");
 let UsersController = class UsersController {
     constructor(usersService) {
@@ -44,6 +45,10 @@ let UsersController = class UsersController {
     }
     async delete(id) {
         return this.usersService.delete(id);
+    }
+    async changePassword(id, changePasswordDto) {
+        const { oldPassword, newPassword } = changePasswordDto;
+        return this.usersService.changePassword(id, oldPassword, newPassword);
     }
 };
 exports.UsersController = UsersController;
@@ -107,6 +112,16 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "delete", null);
+__decorate([
+    (0, common_1.Put)(':id/change-password'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe()),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "changePassword", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

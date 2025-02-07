@@ -7,7 +7,9 @@ export declare class UsersService {
     constructor(profilesService: ProfilesService);
     private getHeaders;
     private getUrl;
+    private verifyPassword;
     private hashPassword;
+    changePassword(userId: string, oldPassword: string, newPassword: string): Promise<any>;
     findAll(page?: number, perPage?: number): Promise<any[]>;
     findUsersByProfile(profileId: string): Promise<any[]>;
     findOne(id: string): Promise<any>;

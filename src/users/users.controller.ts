@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './create-user.dto';
+import { ChangePasswordDto } from './change-password.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
 
@@ -56,5 +57,17 @@ export class UsersController {
   @UseGuards(AuthGuard) // Protection avec JWT
   async delete(@Param('id') id: string) {
     return this.usersService.delete(id);
+  }
+
+  @Put(':id/change-password')
+  @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
+  @UsePipes(new ValidationPipe()) // Valider les données entrantes
+  async changePassword(
+    @Param('id') id: string,
+    @Body() changePasswordDto: ChangePasswordDto
+  ): Promise<any> {
+    const { oldPassword, newPassword } = changePasswordDto;
+
+    return this.usersService.changePassword(id, oldPassword, newPassword);
   }
 }
