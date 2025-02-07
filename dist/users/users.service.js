@@ -15,9 +15,11 @@ const axios_1 = require("axios");
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const profiles_service_1 = require("../profiles/profiles.service");
+const blacklist_service_1 = require("../auth/blacklist.service");
 dotenv.config();
 let UsersService = class UsersService {
-    constructor(profilesService) {
+    constructor(blacklistService, profilesService) {
+        this.blacklistService = blacklistService;
         this.profilesService = profilesService;
         this.apiKey = process.env.AIRTABLE_API_KEY;
         this.baseId = process.env.AIRTABLE_BASE_ID;
@@ -39,7 +41,7 @@ let UsersService = class UsersService {
         const saltRounds = 10;
         return await bcrypt.hash(password, saltRounds);
     }
-    async changePassword(userId, oldPassword, newPassword) {
+    async changePassword(userId, oldPassword, newPassword, token) {
         const user = await this.findOne(userId);
         if (!user) {
             throw new common_1.UnauthorizedException('Utilisateur introuvable.');
@@ -55,12 +57,19 @@ let UsersService = class UsersService {
         const hashedNewPassword = await this.hashPassword(newPassword);
         try {
             const response = await axios_1.default.patch(`${this.getUrl()}/${userId}`, { fields: { password: hashedNewPassword } }, { headers: this.getHeaders() });
-            return { message: 'Mot de passe mis à jour avec succès.' };
+            await this.logout(token);
+            return { message: 'Mot de passe mis à jour avec succès! Vous avez été déconnecté.' };
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du mot de passe :', error);
             throw new Error('Impossible de mettre à jour le mot de passe.');
         }
+    }
+    async logout(token) {
+        if (!token) {
+            return;
+        }
+        await this.blacklistService.add(token);
     }
     async findAll(page = 1, perPage = 20) {
         const offset = (page - 1) * perPage;
@@ -207,6 +216,7 @@ let UsersService = class UsersService {
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [profiles_service_1.ProfilesService])
+    __metadata("design:paramtypes", [blacklist_service_1.BlacklistService,
+        profiles_service_1.ProfilesService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

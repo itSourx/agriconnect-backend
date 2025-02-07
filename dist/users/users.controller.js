@@ -46,9 +46,10 @@ let UsersController = class UsersController {
     async delete(id) {
         return this.usersService.delete(id);
     }
-    async changePassword(id, changePasswordDto) {
+    async changePassword(id, changePasswordDto, req) {
         const { oldPassword, newPassword } = changePasswordDto;
-        return this.usersService.changePassword(id, oldPassword, newPassword);
+        const token = req.headers.authorization?.split(' ')[1];
+        return this.usersService.changePassword(id, oldPassword, newPassword, token);
     }
 };
 exports.UsersController = UsersController;
@@ -118,8 +119,9 @@ __decorate([
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:paramtypes", [String, change_password_dto_1.ChangePasswordDto, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "changePassword", null);
 exports.UsersController = UsersController = __decorate([

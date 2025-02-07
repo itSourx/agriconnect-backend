@@ -12,5 +12,5 @@ export declare class UsersController {
     register(createUserDto: CreateUserDto): Promise<any>;
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
-    changePassword(id: string, changePasswordDto: ChangePasswordDto): Promise<any>;
+    changePassword(id: string, changePasswordDto: ChangePasswordDto, req: any): Promise<any>;
 }

@@ -3,6 +3,8 @@ import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
+import { BlacklistService } from '../auth/blacklist.service';
+
 
 
 
@@ -14,7 +16,11 @@ export class UsersService {
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
   private readonly tableName = process.env.AIRTABLE_USERS_TABLE;
 
-  constructor(private readonly profilesService: ProfilesService) {} // Injection de ProfilesService
+  constructor(
+    private readonly blacklistService: BlacklistService, // Injectez BlacklistService
+    private readonly profilesService: ProfilesService,   // Injectez ProfilesService
+  ) {}
+
 
   private getHeaders() {
     return {
@@ -39,7 +45,7 @@ export class UsersService {
   }
 
   // Changer le mot de passe d'un utilisateur
-    async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<any> {
+    async changePassword(userId: string, oldPassword: string, newPassword: string, token: string): Promise<any> {
       // Récupérer l'utilisateur actuel
       const user = await this.findOne(userId);
   
@@ -71,12 +77,24 @@ export class UsersService {
           { headers: this.getHeaders() }
         );
   
-        return { message: 'Mot de passe mis à jour avec succès.' };
+      // Appeler la fonction logout pour déconnecter l'utilisateur
+      await this.logout(token);
+
+      return { message: 'Mot de passe mis à jour avec succès! Vous avez été déconnecté.' };
       } catch (error) {
         console.error('Erreur lors de la mise à jour du mot de passe :', error);
         throw new Error('Impossible de mettre à jour le mot de passe.');
       }
     }
+  // Ajouter le token à la liste noire (si applicable)
+  private async logout(token: string): Promise<void> {
+    if (!token) {
+      return; // Si aucun token n'est fourni, ne faites rien
+    }
+
+    // Ajouter le token à la liste noire
+    await this.blacklistService.add(token);
+  }
 
     
   /* // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké dans Airtable

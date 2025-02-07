@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './create-user.dto';
 import { ChangePasswordDto } from './change-password.dto';
@@ -64,10 +64,14 @@ export class UsersController {
   @UsePipes(new ValidationPipe()) // Valider les données entrantes
   async changePassword(
     @Param('id') id: string,
-    @Body() changePasswordDto: ChangePasswordDto
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Request() req, // Accéder à la requête via @Request()
   ): Promise<any> {
     const { oldPassword, newPassword } = changePasswordDto;
 
-    return this.usersService.changePassword(id, oldPassword, newPassword);
+    // Extraire le token de l'en-tête Authorization
+    const token = req.headers.authorization?.split(' ')[1];
+
+    return this.usersService.changePassword(id, oldPassword, newPassword, token);
   }
 }

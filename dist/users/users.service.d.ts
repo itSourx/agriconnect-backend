@@ -1,15 +1,18 @@
 import { ProfilesService } from '../profiles/profiles.service';
+import { BlacklistService } from '../auth/blacklist.service';
 export declare class UsersService {
+    private readonly blacklistService;
     private readonly profilesService;
     private readonly apiKey;
     private readonly baseId;
     private readonly tableName;
-    constructor(profilesService: ProfilesService);
+    constructor(blacklistService: BlacklistService, profilesService: ProfilesService);
     private getHeaders;
     private getUrl;
     private verifyPassword;
     private hashPassword;
-    changePassword(userId: string, oldPassword: string, newPassword: string): Promise<any>;
+    changePassword(userId: string, oldPassword: string, newPassword: string, token: string): Promise<any>;
+    private logout;
     findAll(page?: number, perPage?: number): Promise<any[]>;
     findUsersByProfile(profileId: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
