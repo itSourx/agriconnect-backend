@@ -113,7 +113,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "delete", null);
 __decorate([
-    (0, common_1.Put)(':id/change-password'),
+    (0, common_1.Put)('change-password/:id'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     __param(0, (0, common_1.Param)('id')),

@@ -59,7 +59,7 @@ export class UsersController {
     return this.usersService.delete(id);
   }
 
-  @Put(':id/change-password')
+  @Put('change-password/:id')
   @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
   @UsePipes(new ValidationPipe()) // Valider les données entrantes
   async changePassword(
