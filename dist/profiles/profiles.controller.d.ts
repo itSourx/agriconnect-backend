@@ -3,7 +3,6 @@ export declare class ProfilesController {
     private readonly profilesService;
     constructor(profilesService: ProfilesService);
     findAll(): Promise<any[]>;
-    findOneByType(type: string): Promise<any>;
     findAllByType(type: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
     create(data: any): Promise<any>;

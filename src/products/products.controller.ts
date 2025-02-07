@@ -26,9 +26,6 @@ export class ProductsController {
   }
 
   @Post('add/')
-  /*async create(@Body() data: any) {
-    return this.productsService.create(data);
-  }*/
    @UsePipes(new ValidationPipe())
    async create(@Body() CreateProductDto: CreateProductDto) {
      return this.productsService.create(CreateProductDto);

@@ -33,7 +33,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Post()
+  @Post('add/')
   @UsePipes(new ValidationPipe())
   async create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -41,8 +41,6 @@ export class UsersController {
 
   // Nouvelle méthode : Inscription d'un utilisateur avec email et mot de passe
   @Post('register') // Endpoint spécifique pour l'inscription
-  //async register(@Body() body: { email: string; password: string;}) {
-    //return this.usersService.create(body); // Utilise la méthode create existante
     @UsePipes(new ValidationPipe())
     async register(@Body() createUserDto: CreateUserDto) {
       return this.usersService.create(createUserDto);  
