@@ -1,8 +1,8 @@
 export declare class CreateProductDto {
-    email: string;
     Name: string;
-    Description: string;
-    Quantity: number;
-    Price: number;
-    Category: string;
+    description: string;
+    quantity: number;
+    price: number;
+    category: string;
+    email: string;
 }

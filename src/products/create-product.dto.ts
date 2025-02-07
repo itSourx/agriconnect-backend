@@ -1,21 +1,22 @@
 import { IsEmail, IsString, IsNumber } from 'class-validator';
 
 export class CreateProductDto {
-  @IsEmail()
-  email: string;
 
   @IsString()
   Name: string;
 
   @IsString()
-  Description: string;
+  description: string;
 
   @IsNumber()
-  Quantity: number;
+  quantity: number;
 
   @IsNumber()
-  Price: number;
+  price: number;
 
   @IsString()
-  Category: string; // Type de produit : "Cereal", "Fruts", "Legumes..."
+  category: string; // Type de produit : "Cereal", "Fruts", "Legumes..."
+
+  @IsEmail()
+  email: string;
 }

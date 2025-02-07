@@ -15,27 +15,27 @@ class CreateProductDto {
 }
 exports.CreateProductDto = CreateProductDto;
 __decorate([
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], CreateProductDto.prototype, "email", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "Name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateProductDto.prototype, "Description", void 0);
+], CreateProductDto.prototype, "description", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateProductDto.prototype, "Quantity", void 0);
+], CreateProductDto.prototype, "quantity", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateProductDto.prototype, "Price", void 0);
+], CreateProductDto.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateProductDto.prototype, "Category", void 0);
+], CreateProductDto.prototype, "category", void 0);
+__decorate([
+    (0, class_validator_1.IsEmail)(),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "email", void 0);
 //# sourceMappingURL=create-product.dto.js.map

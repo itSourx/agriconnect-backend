@@ -1,6 +1,6 @@
 import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ProductsService } from './products.service';
-//import { CreateUserDto } from './create-user.dto';
+import { CreateProductDto } from './create-product.dto';
 
 
 @Controller('products')
@@ -25,10 +25,14 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
-  @Post()
-  async create(@Body() data: any) {
+  @Post('add/')
+  /*async create(@Body() data: any) {
     return this.productsService.create(data);
-  }
+  }*/
+   @UsePipes(new ValidationPipe())
+   async create(@Body() CreateProductDto: CreateProductDto) {
+     return this.productsService.create(CreateProductDto);
+   }
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() data: any) {
