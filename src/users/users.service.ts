@@ -1,9 +1,10 @@
-import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
 import { BlacklistService } from '../auth/blacklist.service';
+import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
 
 
 
@@ -95,12 +96,6 @@ export class UsersService {
     // Ajouter le token à la liste noire
     await this.blacklistService.add(token);
   }
-
-    
-  /* // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké dans Airtable
-private async verifyPassword(storedHash: string, plainTextPassword: string): Promise<boolean> {
-  return bcrypt.compare(plainTextPassword, storedHash);
-}*/
 
 async findAll(page = 1, perPage = 20): Promise<any[]> {
   const offset = (page - 1) * perPage;
@@ -292,5 +287,46 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
         throw new Error('Impossible de récupérer les utilisateurs.');
       }
     }
+  // Générer un mot de passe aléatoire de 9 caractères
+  private generateRandomPassword(length: number = 9): string {
+    const possibleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += possibleCharacters.charAt(Math.floor(Math.random() * possibleCharacters.length));
+    }
+    return password;
+  }
+
+  // Réinitialiser le mot de passe d'un utilisateur
+  async resetPassword(email: string): Promise<any> {
+    // Vérifier si l'utilisateur existe
+    const user = await this.findOneByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('Aucun utilisateur trouvé avec cet email.');
+    }
+
+    // Générer un mot de passe temporaire
+    const temporaryPassword = this.generateRandomPassword(9);
+
+    // Hacher le mot de passe temporaire
+    const hashedTemporaryPassword = await bcrypt.hash(temporaryPassword, 10);
+
+    try {
+      // Enregistrer le mot de passe temporaire dans le champ resetPassword
+      const response = await axios.patch(
+        `${this.getUrl()}/${user.id}`,
+        { fields: { resetPassword: hashedTemporaryPassword } },
+        { headers: this.getHeaders() }
+      );
+
+      // Retourner le mot de passe temporaire (non haché) pour une éventuelle notification
+      return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+    } catch (error) {
+      console.error('Erreur lors de la réinitialisation du mot de passe :', error);
+      throw new Error('Impossible de réinitialiser le mot de passe.');
+    }
+  }
+
 
 }

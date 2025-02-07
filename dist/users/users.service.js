@@ -212,6 +212,30 @@ let UsersService = class UsersService {
             throw new Error('Impossible de récupérer les utilisateurs.');
         }
     }
+    generateRandomPassword(length = 9) {
+        const possibleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let password = '';
+        for (let i = 0; i < length; i++) {
+            password += possibleCharacters.charAt(Math.floor(Math.random() * possibleCharacters.length));
+        }
+        return password;
+    }
+    async resetPassword(email) {
+        const user = await this.findOneByEmail(email);
+        if (!user) {
+            throw new common_1.NotFoundException('Aucun utilisateur trouvé avec cet email.');
+        }
+        const temporaryPassword = this.generateRandomPassword(9);
+        const hashedTemporaryPassword = await bcrypt.hash(temporaryPassword, 10);
+        try {
+            const response = await axios_1.default.patch(`${this.getUrl()}/${user.id}`, { fields: { resetPassword: hashedTemporaryPassword } }, { headers: this.getHeaders() });
+            return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+        }
+        catch (error) {
+            console.error('Erreur lors de la réinitialisation du mot de passe :', error);
+            throw new Error('Impossible de réinitialiser le mot de passe.');
+        }
+    }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([

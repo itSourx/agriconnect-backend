@@ -74,4 +74,11 @@ export class UsersController {
 
     return this.usersService.changePassword(id, oldPassword, newPassword, token);
   }
+
+  @Post('reset-password')
+  async resetPassword(@Body() body: { email: string }): Promise<any> {
+    const { email } = body;
+
+    return this.usersService.resetPassword(email);
+  }
 }
