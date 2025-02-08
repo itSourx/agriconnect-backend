@@ -23,4 +23,5 @@ export declare class UsersService {
     findAllByProfile(profile: string): Promise<any[]>;
     private generateRandomPassword;
     resetPassword(email: string): Promise<any>;
+    private sendPasswordResetEmail;
 }

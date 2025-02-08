@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
 import { BlacklistService } from '../auth/blacklist.service';
 import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
+import * as nodemailer from 'nodemailer';
+
 
 
 
@@ -321,12 +323,36 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
       );
 
       // Retourner le mot de passe temporaire (non haché) pour une éventuelle notification
-      return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+      //return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+
+    // Envoyer le mot de passe temporaire par email
+    await this.sendPasswordResetEmail(email, temporaryPassword);
+
+    return { message: 'Un mot de passe temporaire a été envoyé à votre adresse email.' };
+
     } catch (error) {
       console.error('Erreur lors de la réinitialisation du mot de passe :', error);
       throw new Error('Impossible de réinitialiser le mot de passe.');
     }
   }
 
+// Fonction pour envoyer un email
+private async sendPasswordResetEmail(email: string, temporaryPassword: string): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail', // Utilisez votre service email (ex. Gmail, SendGrid, etc.)
+    auth: {
+      user: process.env.EMAIL_USER, // Votre adresse email
+      pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
+    },
+  });
 
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Réinitialisation de votre mot de passe',
+    text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 }

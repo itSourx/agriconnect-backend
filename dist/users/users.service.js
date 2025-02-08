@@ -16,6 +16,7 @@ const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const profiles_service_1 = require("../profiles/profiles.service");
 const blacklist_service_1 = require("../auth/blacklist.service");
+const nodemailer = require("nodemailer");
 dotenv.config();
 let UsersService = class UsersService {
     constructor(blacklistService, profilesService) {
@@ -229,12 +230,29 @@ let UsersService = class UsersService {
         const hashedTemporaryPassword = await bcrypt.hash(temporaryPassword, 10);
         try {
             const response = await axios_1.default.patch(`${this.getUrl()}/${user.id}`, { fields: { resetPassword: hashedTemporaryPassword } }, { headers: this.getHeaders() });
-            return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+            await this.sendPasswordResetEmail(email, temporaryPassword);
+            return { message: 'Un mot de passe temporaire a été envoyé à votre adresse email.' };
         }
         catch (error) {
             console.error('Erreur lors de la réinitialisation du mot de passe :', error);
             throw new Error('Impossible de réinitialiser le mot de passe.');
         }
+    }
+    async sendPasswordResetEmail(email, temporaryPassword) {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD,
+            },
+        });
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Réinitialisation de votre mot de passe',
+            text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
+        };
+        await transporter.sendMail(mailOptions);
     }
 };
 exports.UsersService = UsersService;
