@@ -81,4 +81,12 @@ export class UsersController {
 
     return this.usersService.resetPassword(email);
   }
+
+  @Post('validate-reset-password')
+  @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
+async validateResetPassword(@Body() body: { email: string; temporaryPassword: string; newPassword: string }): Promise<any> {
+  const { email, temporaryPassword, newPassword } = body;
+
+  return this.usersService.validateResetPassword(email, temporaryPassword, newPassword);
+}
 }

@@ -65,8 +65,8 @@ export class UsersService {
       }
   
       // Valider le nouveau mot de passe
-      if (newPassword.length < 6) {
-        throw new Error('Le nouveau mot de passe doit contenir au moins 6 caractères.');
+      if (newPassword.length < 8) {
+        throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
       }
   
       // Hacher le nouveau mot de passe
@@ -336,23 +336,70 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
     }
   }
 
-// Fonction pour envoyer un email
-private async sendPasswordResetEmail(email: string, temporaryPassword: string): Promise<void> {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail', // Utilisez votre service email (ex. Gmail, SendGrid, etc.)
-    auth: {
-      user: process.env.EMAIL_USER, // Votre adresse email
-      pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
-    },
-  });
+  private async sendPasswordResetEmail(email: string, temporaryPassword: string): Promise<void> {
+    const transporter = nodemailer.createTransport({
+      host: 'mail.sourx.com', // Remplacez par l'adresse SMTP de votre hébergeur
+      port: 465, // Port SMTP (généralement 587 pour TLS ou 465 pour SSL)
+      secure: true, // Utilisez `true` si le port est 465 (SSL)
+      auth: {
+        user: process.env.EMAIL_USER, // Votre adresse email
+        pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
+      },
+      tls: {
+        rejectUnauthorized: false, // Ignorer les certificats non valides (si nécessaire)
+      },
+    });
+  
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Expéditeur
+      to: email, // Destinataire
+      subject: 'Réinitialisation de votre mot de passe',
+      text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
+    };
+  
+    await transporter.sendMail(mailOptions);
+  }
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: 'Réinitialisation de votre mot de passe',
-    text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
-  };
-
-  await transporter.sendMail(mailOptions);
-}
+  async validateResetPassword(email: string, temporaryPassword: string, newPassword: string): Promise<any> {
+    // Récupérer l'utilisateur par email
+    const user = await this.findOneByEmail(email);
+  
+    if (!user) {
+      throw new NotFoundException('Aucun utilisateur trouvé avec cet email.');
+    }
+  
+    // Vérifier si le mot de passe temporaire est valide
+    const storedTemporaryPassword = user.fields.resetPassword;
+    if (!storedTemporaryPassword) {
+      throw new UnauthorizedException('Aucun mot de passe temporaire enregistré.');
+    }
+  
+    const isPasswordValid = await bcrypt.compare(temporaryPassword, storedTemporaryPassword);
+  
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mot de passe temporaire incorrect.');
+    }
+  
+    // Valider le nouveau mot de passe
+    if (newPassword.length < 8) {
+      throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+    }
+  
+    // Hacher le nouveau mot de passe
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+  
+    try {
+      // Mettre à jour le mot de passe permanent et effacer le champ resetPassword
+      await axios.patch(
+        `${this.getUrl()}/${user.id}`,
+        { fields: { password: hashedNewPassword, resetPassword: '' } },
+        { headers: this.getHeaders() }
+      );
+  
+      return { message: 'Mot de passe mis à jour avec succès.' };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du mot de passe :', error);
+      throw new Error('Impossible de mettre à jour le mot de passe.');
+    }
+  }
 }

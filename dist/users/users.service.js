@@ -52,8 +52,8 @@ let UsersService = class UsersService {
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('Ancien mot de passe incorrect.');
         }
-        if (newPassword.length < 6) {
-            throw new Error('Le nouveau mot de passe doit contenir au moins 6 caractères.');
+        if (newPassword.length < 8) {
+            throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
         }
         const hashedNewPassword = await this.hashPassword(newPassword);
         try {
@@ -240,10 +240,15 @@ let UsersService = class UsersService {
     }
     async sendPasswordResetEmail(email, temporaryPassword) {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'mail.sourx.com',
+            port: 465,
+            secure: true,
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD,
+            },
+            tls: {
+                rejectUnauthorized: false,
             },
         });
         const mailOptions = {
@@ -253,6 +258,32 @@ let UsersService = class UsersService {
             text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
         };
         await transporter.sendMail(mailOptions);
+    }
+    async validateResetPassword(email, temporaryPassword, newPassword) {
+        const user = await this.findOneByEmail(email);
+        if (!user) {
+            throw new common_1.NotFoundException('Aucun utilisateur trouvé avec cet email.');
+        }
+        const storedTemporaryPassword = user.fields.resetPassword;
+        if (!storedTemporaryPassword) {
+            throw new common_1.UnauthorizedException('Aucun mot de passe temporaire enregistré.');
+        }
+        const isPasswordValid = await bcrypt.compare(temporaryPassword, storedTemporaryPassword);
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException('Mot de passe temporaire incorrect.');
+        }
+        if (newPassword.length < 8) {
+            throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+        }
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        try {
+            await axios_1.default.patch(`${this.getUrl()}/${user.id}`, { fields: { password: hashedNewPassword, resetPassword: '' } }, { headers: this.getHeaders() });
+            return { message: 'Mot de passe mis à jour avec succès.' };
+        }
+        catch (error) {
+            console.error('Erreur lors de la mise à jour du mot de passe :', error);
+            throw new Error('Impossible de mettre à jour le mot de passe.');
+        }
     }
 };
 exports.UsersService = UsersService;

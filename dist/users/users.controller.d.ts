@@ -16,4 +16,9 @@ export declare class UsersController {
     resetPassword(body: {
         email: string;
     }): Promise<any>;
+    validateResetPassword(body: {
+        email: string;
+        temporaryPassword: string;
+        newPassword: string;
+    }): Promise<any>;
 }

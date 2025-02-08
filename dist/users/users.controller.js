@@ -55,6 +55,10 @@ let UsersController = class UsersController {
         const { email } = body;
         return this.usersService.resetPassword(email);
     }
+    async validateResetPassword(body) {
+        const { email, temporaryPassword, newPassword } = body;
+        return this.usersService.validateResetPassword(email, temporaryPassword, newPassword);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -135,6 +139,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "resetPassword", null);
+__decorate([
+    (0, common_1.Post)('validate-reset-password'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "validateResetPassword", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])
