@@ -1,4 +1,4 @@
-import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe } from '@nestjs/common';
+import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 
@@ -18,7 +18,11 @@ export class ProductsController {
   async findAllByCategory(@Param('category') category: string): Promise<any[]> {
     return this.productsService.findAllByCategory(category);
   }
-
+  // Rechercher des produits
+  @Get('search/:query')
+  async search(@Param('query') query: string) {
+    return this.productsService.search(query);
+  }
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -30,6 +34,16 @@ export class ProductsController {
    async create(@Body() CreateProductDto: CreateProductDto) {
      return this.productsService.create(CreateProductDto);
    }
+
+  /*@Post('add/')
+  //@UseGuards(AuthGuard)
+  async create(@Body() data: any, @Request() req) {
+    // Vérifiez si l'utilisateur est un agriculteur
+    if (req.user.profile !== 'AGRICULTEUR') {
+      throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
+    }
+    return this.productsService.create(data);
+  }*/
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() data: any) {

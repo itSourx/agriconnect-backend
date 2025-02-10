@@ -46,11 +46,41 @@ let ProductsService = class ProductsService {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
         return response.data;
     }
+    async search(query) {
+        try {
+            console.log('Requête de recherche :', query);
+            const encodedQuery = encodeURIComponent(query.toLowerCase());
+            const formula = `OR(
+        FIND(LOWER("${encodedQuery}"), LOWER({name})),
+        FIND(LOWER("${encodedQuery}"), LOWER({category}))
+      )`;
+            const response = await axios_1.default.get(this.getUrl(), {
+                headers: this.getHeaders(),
+                params: {
+                    filterByFormula: formula,
+                },
+            });
+            console.log('Réponse d’Airtable :', response.data.records);
+            return response.data.records;
+        }
+        catch (error) {
+            console.error('Erreur lors de la recherche de produits :', error);
+            return [];
+        }
+    }
     async create(data) {
         if (data.email) {
             const user = await this.usersService.findOneByEmail(data.email);
             if (!user) {
                 throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
+            }
+            if (data.Photo) {
+                if (typeof data.Photo === 'string') {
+                    data.Photo = [{ url: data.Photo }];
+                }
+                else if (Array.isArray(data.Photo)) {
+                    data.Photo = data.Photo.map(url => ({ url }));
+                }
             }
             data.user = [user.id];
             delete data.email;
@@ -70,15 +100,23 @@ let ProductsService = class ProductsService {
         }
     }
     async update(id, data) {
-        try {
-            if (data.email) {
-                const user = await this.usersService.findOneByEmail(data.email);
-                if (!user) {
-                    throw new Error(`L'email "${data.email}" n'existe pas.`);
-                }
-                data.user = [user.id];
-                delete data.email;
+        if (data.Photo) {
+            if (typeof data.Photo === 'string') {
+                data.Photo = [{ url: data.Photo }];
             }
+            else if (Array.isArray(data.Photo)) {
+                data.Photo = data.Photo.map(url => ({ url }));
+            }
+        }
+        if (data.Gallery) {
+            if (typeof data.Gallery === 'string') {
+                data.Gallery = [{ url: data.Gallery }];
+            }
+            else if (Array.isArray(data.Gallery)) {
+                data.Gallery = data.Gallery.map(url => ({ url }));
+            }
+        }
+        try {
             const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
             return response.data;
         }

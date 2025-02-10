@@ -26,6 +26,9 @@ let ProductsController = class ProductsController {
     async findAllByCategory(category) {
         return this.productsService.findAllByCategory(category);
     }
+    async search(query) {
+        return this.productsService.search(query);
+    }
     async findOne(id) {
         return this.productsService.findOne(id);
     }
@@ -53,6 +56,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "findAllByCategory", null);
+__decorate([
+    (0, common_1.Get)('search/:query'),
+    __param(0, (0, common_1.Param)('query')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ProductsController.prototype, "search", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
