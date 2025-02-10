@@ -77,9 +77,9 @@ export class ProductsService {
       if (!user) {
         throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
       }
-      /*if (user.fields.profile !== 'AGRICULTEUR') {
+      if (user.fields.profile.trim() !== 'AGRICULTEUR') {
         throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
-      }*/
+      }
 
       if (data.Photo) {
         // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets

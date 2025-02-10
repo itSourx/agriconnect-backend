@@ -74,6 +74,9 @@ let ProductsService = class ProductsService {
             if (!user) {
                 throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
             }
+            if (user.fields.profile.trim() !== 'AGRICULTEUR') {
+                throw new common_1.UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
+            }
             if (data.Photo) {
                 if (typeof data.Photo === 'string') {
                     data.Photo = [{ url: data.Photo }];

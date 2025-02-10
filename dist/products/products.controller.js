@@ -35,7 +35,12 @@ let ProductsController = class ProductsController {
     }
     async create(CreateProductDto, req) {
         console.log('Utilisateur connecté :', req.user);
-        if (req.user.profile !== 'AGRICULTEUR') {
+        console.log('Type de profile :', typeof req.user.profile);
+        console.log('Valeur brute de profile :', JSON.stringify(req.user.profile));
+        if (!req.user || !req.user.profile) {
+            throw new common_1.UnauthorizedException('Informations utilisateur manquantes.');
+        }
+        if (req.user.profile.trim() !== 'AGRICULTEUR') {
             console.error(`Profile incorrect : ${req.user.profile}`);
             throw new common_1.UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
         }
