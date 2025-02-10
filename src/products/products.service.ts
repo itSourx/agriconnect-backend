@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import { UsersService } from '../users/users.service'; // Importez ProfilesService
@@ -77,6 +77,9 @@ export class ProductsService {
       if (!user) {
         throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
       }
+      /*if (user.fields.profile !== 'AGRICULTEUR') {
+        throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
+      }*/
 
       if (data.Photo) {
         // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
@@ -135,7 +138,7 @@ export class ProductsService {
       }
       // Si Gallery est un tableau de chaînes, convertissez chaque élément
       else if (Array.isArray(data.Gallery)) {
-        data.Gallery = data.Gallery.map(url => ({ url }));
+        data.Gallery = data.Photo.map(url => ({ url }));
       }
     }
     

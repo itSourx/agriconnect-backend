@@ -26,7 +26,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [users_module_1.UsersModule, products_module_1.ProductsModule, orders_module_1.OrdersModule, auth_module_1.AuthModule, profiles_module_1.ProfilesModule, jwt_1.JwtModule.register({
                 secret: process.env.JWT_SECRET,
                 signOptions: { expiresIn: '60m' },
-            }), profiles_module_1.ProfilesModule,],
+            }), profiles_module_1.ProfilesModule, products_module_1.ProductsModule,],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

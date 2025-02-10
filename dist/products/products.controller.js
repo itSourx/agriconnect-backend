@@ -16,6 +16,7 @@ exports.ProductsController = void 0;
 const common_1 = require("@nestjs/common");
 const products_service_1 = require("./products.service");
 const create_product_dto_1 = require("./create-product.dto");
+const auth_guard_1 = require("../auth/auth.guard");
 let ProductsController = class ProductsController {
     constructor(productsService) {
         this.productsService = productsService;
@@ -32,7 +33,12 @@ let ProductsController = class ProductsController {
     async findOne(id) {
         return this.productsService.findOne(id);
     }
-    async create(CreateProductDto) {
+    async create(CreateProductDto, req) {
+        console.log('Utilisateur connecté :', req.user);
+        if (req.user.profile !== 'AGRICULTEUR') {
+            console.error(`Profile incorrect : ${req.user.profile}`);
+            throw new common_1.UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
+        }
         return this.productsService.create(CreateProductDto);
     }
     async update(id, data) {
@@ -72,10 +78,12 @@ __decorate([
 ], ProductsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)('add/'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_product_dto_1.CreateProductDto]),
+    __metadata("design:paramtypes", [create_product_dto_1.CreateProductDto, Object]),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "create", null);
 __decorate([

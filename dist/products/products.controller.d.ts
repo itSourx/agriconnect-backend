@@ -7,7 +7,7 @@ export declare class ProductsController {
     findAllByCategory(category: string): Promise<any[]>;
     search(query: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
-    create(CreateProductDto: CreateProductDto): Promise<any>;
+    create(CreateProductDto: CreateProductDto, req: any): Promise<any>;
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
 }

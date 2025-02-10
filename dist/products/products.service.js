@@ -113,7 +113,7 @@ let ProductsService = class ProductsService {
                 data.Gallery = [{ url: data.Gallery }];
             }
             else if (Array.isArray(data.Gallery)) {
-                data.Gallery = data.Gallery.map(url => ({ url }));
+                data.Gallery = data.Photo.map(url => ({ url }));
             }
         }
         try {
