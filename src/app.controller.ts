@@ -26,6 +26,8 @@ export class AppController {
 
     @Get('/')
     root(@Res() res: Response) {
-      res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+      //res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+          res.sendFile(path.join(__dirname, '..', 'src', 'public', 'index.html'));
+
     }
 }

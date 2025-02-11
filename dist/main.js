@@ -24,14 +24,8 @@ async function bootstrap() {
     });
     const port = process.env.PORT || 3000;
     app.useLogger(logger);
-    const isProduction = process.env.NODE_ENV === 'production';
-    const publicDir = isProduction
-        ? path.join(__dirname, 'public')
-        : path.join(__dirname, '..', 'src', 'public');
+    const publicDir = path.join(__dirname, '..', 'src', 'public');
     app.useStaticAssets(publicDir);
-    app.use('/', (req, res) => {
-        res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-    });
     await app.listen(port);
     console.log(`Application is running on: ${await app.getUrl()}`);
 }

@@ -67,15 +67,14 @@ async function bootstrap() {
   app.useStaticAssets(publicDir);*/
 
     // Servir les fichiers statiques depuis le dossier "public"
-      // Pointe vers src/public/ directement
+  // Servir les fichiers statiques depuis /static/
   const publicDir = path.join(__dirname, '..', 'src', 'public');
-  app.useStaticAssets(publicDir);
-  //app.useStaticAssets(path.join(__dirname, '..', 'public'));
+  app.useStaticAssets(publicDir); //, { prefix: '/static/' }
 
     // Définir la route racine pour rediriger vers index.html
-    app.use('/', (req, res) => {
+    /*app.use('/', (req, res) => {
       res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-    });
+    });*/
 
   await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);
