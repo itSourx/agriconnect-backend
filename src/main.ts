@@ -30,43 +30,7 @@ async function bootstrap() {
   });
   const port = process.env.PORT || 3000;
   app.useLogger(logger);
-
-  //await TemplateModule.setup(app); // Configuration de Handlebars
-    // Configuration Handlebars
-    //app.setViewEngine('hbs');
-    //app.setBaseViewsDir('views'); // Chemin vers les templates
-    //app.useStaticAssets('public'); // Dossier des assets
-    //app.setBaseViewsDir(join(__dirname, 'views')); // Chemin vers les templates
-    //app.useStaticAssets(join(__dirname, '..', 'public')); // Dossier des assets
-
-  // Configurer les fichiers statiques
-  /*app.useStaticAssets('public', { prefix: '/' }); // Dossier public contenant index.html
-  app.setBaseViewsDir('views'); // Optionnel si tu utilises des moteurs de templates
-
-  // Définir la route racine pour rediriger vers index.html
-  app.get('/', (req, res) => {
-    res.sendFile('index.html');
-  });
-
-    // Utiliser EJS comme moteur de template
-    app.setBaseViewsDir('views');
-    app.setViewEngine('ejs');
   
-    // Route racine avec rendu dynamique
-    app.get('/', (req, res) => {
-      res.render('index', { title: 'AgriConnect Backend', message: 'Bienvenue !' });
-    });*/
-
-
-  // Détermine le chemin vers public/ selon l'environnement
-  /*const isProduction = process.env.NODE_ENV === 'production';
-  const publicDir = isProduction
-    ? path.join(__dirname, 'public') // dist/public/
-    : path.join(__dirname, '..', 'src', 'public'); // src/public/
-
-  app.useStaticAssets(publicDir);*/
-
-    // Servir les fichiers statiques depuis le dossier "public"
   // Servir les fichiers statiques depuis /static/
   const publicDir = path.join(__dirname, '..', 'src', 'public');
   app.useStaticAssets(publicDir); //, { prefix: '/static/' }
