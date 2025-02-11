@@ -4,6 +4,7 @@ const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const dotenv = require("dotenv");
 const winston = require("winston");
+const path = require("path");
 dotenv.config();
 const logger = winston.createLogger({
     level: 'info',
@@ -15,7 +16,7 @@ const logger = winston.createLogger({
     ],
 });
 async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule, { logger: ['log', 'error', 'warn', 'debug'] });
+    const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors({
         origin: '*',
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -23,6 +24,14 @@ async function bootstrap() {
     });
     const port = process.env.PORT || 3000;
     app.useLogger(logger);
+    const isProduction = process.env.NODE_ENV === 'production';
+    const publicDir = isProduction
+        ? path.join(__dirname, 'public')
+        : path.join(__dirname, '..', 'src', 'public');
+    app.useStaticAssets(publicDir);
+    app.use('/', (req, res) => {
+        res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    });
     await app.listen(port);
     console.log(`Application is running on: ${await app.getUrl()}`);
 }

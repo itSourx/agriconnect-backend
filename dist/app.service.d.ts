@@ -1,3 +1,7 @@
 export declare class AppService {
-    getHello(): string;
+    getFeatures(): {
+        title: string;
+        icon: string;
+        description: string;
+    }[];
 }
