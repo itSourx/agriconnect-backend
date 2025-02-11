@@ -59,15 +59,18 @@ async function bootstrap() {
 
 
   // Détermine le chemin vers public/ selon l'environnement
-  const isProduction = process.env.NODE_ENV === 'production';
+  /*const isProduction = process.env.NODE_ENV === 'production';
   const publicDir = isProduction
     ? path.join(__dirname, 'public') // dist/public/
     : path.join(__dirname, '..', 'src', 'public'); // src/public/
 
-  app.useStaticAssets(publicDir);
+  app.useStaticAssets(publicDir);*/
 
     // Servir les fichiers statiques depuis le dossier "public"
-    //app.useStaticAssets(path.join(__dirname, '..', 'public'));
+      // Pointe vers src/public/ directement
+  const publicDir = path.join(__dirname, '..', 'src', 'public');
+  app.useStaticAssets(publicDir);
+  //app.useStaticAssets(path.join(__dirname, '..', 'public'));
 
     // Définir la route racine pour rediriger vers index.html
     app.use('/', (req, res) => {
