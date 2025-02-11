@@ -30,7 +30,16 @@ async function bootstrap() {
   });
   const port = process.env.PORT || 3000;
   app.useLogger(logger);
-  
+
+
+  // Détermine le chemin vers public/ selon l'environnement
+  /*const isProduction = process.env.NODE_ENV === 'production';
+  const publicDir = isProduction
+    ? path.join(__dirname, 'public') // dist/public/
+    : path.join(__dirname, '..', 'src', 'public'); // src/public/
+
+  app.useStaticAssets(publicDir);*/
+
   // Servir les fichiers statiques depuis /static/
   const publicDir = path.join(__dirname, '..', 'src', 'public');
   app.useStaticAssets(publicDir); //, { prefix: '/static/' }
