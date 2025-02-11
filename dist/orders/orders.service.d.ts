@@ -4,7 +4,7 @@ export declare class OrdersService {
     private readonly tableName;
     private getHeaders;
     private getUrl;
-    findAll(): Promise<any[]>;
+    findAll(page?: number, perPage?: number): Promise<any[]>;
     findOne(id: string): Promise<any>;
     create(data: any): Promise<any>;
     update(id: string, data: any): Promise<any>;
