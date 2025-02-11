@@ -1,5 +1,5 @@
 .hero {
-    background: linear-gradient(rgba(0,100,0,0.7), rgba(0,100,0,0.7)), 
+    background: linear-gradient(135deg, #4CAF50, #8BC34A, rgba(0,100,0,0.7)), 
                 url('/images/farm-bg.jpg') center/cover;
 }
 
