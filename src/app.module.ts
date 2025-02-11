@@ -15,7 +15,7 @@ dotenv.config();
   imports: [UsersModule, ProductsModule, OrdersModule, AuthModule, ProfilesModule, JwtModule.register({
     secret: process.env.JWT_SECRET, // Utilisez la clé secrète depuis .env
     signOptions: { expiresIn: '60m' }, // Optionnel : durée de vie du token (par défaut : 1 heure)
-  }), ProfilesModule,],
+  }), ProfilesModule,ProductsModule,],
   controllers: [AppController],
   providers: [AppService],
 })

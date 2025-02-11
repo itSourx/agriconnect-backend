@@ -15,7 +15,7 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
-  @Post()
+  @Post('add/')
   async create(@Body() data: any) {
     return this.ordersService.create(data);
   }

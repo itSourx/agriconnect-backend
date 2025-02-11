@@ -26,8 +26,15 @@ let OrdersService = class OrdersService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
-    async findAll() {
-        const response = await axios_1.default.get(this.getUrl(), { headers: this.getHeaders() });
+    async findAll(page = 1, perPage = 10) {
+        const offset = (page - 1) * perPage;
+        const response = await axios_1.default.get(this.getUrl(), {
+            headers: this.getHeaders(),
+            params: {
+                pageSize: perPage,
+                offset: offset > 0 ? offset.toString() : undefined,
+            },
+        });
         return response.data.records;
     }
     async findOne(id) {
@@ -35,16 +42,34 @@ let OrdersService = class OrdersService {
         return response.data;
     }
     async create(data) {
-        const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: data }] }, { headers: this.getHeaders() });
-        return response.data;
+        try {
+            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: data }] }, { headers: this.getHeaders() });
+            return response.data.records[0];
+        }
+        catch (error) {
+            console.error('Erreur lors de la création de la commande :', error);
+            throw new Error('Impossible de créer la commande.');
+        }
     }
     async update(id, data) {
-        const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
-        return response.data;
+        try {
+            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la mise à jour de la commande :', error);
+            throw new Error('Impossible de mettre à jour la commande.');
+        }
     }
     async delete(id) {
-        const response = await axios_1.default.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
-        return response.data;
+        try {
+            const response = await axios_1.default.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la suppression de la commande :', error);
+            throw new Error('Impossible de supprimer la commande.');
+        }
     }
 };
 exports.OrdersService = OrdersService;

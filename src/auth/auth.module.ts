@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module'; // <--- Importez UsersModule ici
+import { ProductsModule } from '../products/products.module'; // <--- Importez UsersModule ici
 import * as dotenv from 'dotenv';
 import { BlacklistService } from './blacklist.service';
 
@@ -15,8 +16,8 @@ dotenv.config();
       secret: process.env.JWT_SECRET, // Remplacez ceci par votre clé secrète JWT
       signOptions: { expiresIn: '60m' }, // Optionnel : durée de validité du token
     }),
-    //UsersModule, // <--- Ajoutez UsersModule ici
     forwardRef(() => UsersModule), // Utilisez forwardRef() pour éviter la circularité
+    //forwardRef(() => ProductsModule), // Utilisez forwardRef() pour éviter la circularité
   ],
   providers: [AuthService, BlacklistService],
   controllers: [AuthController],

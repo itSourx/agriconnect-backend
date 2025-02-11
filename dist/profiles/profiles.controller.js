@@ -22,8 +22,8 @@ let ProfilesController = class ProfilesController {
     async findAll() {
         return this.profilesService.findAll();
     }
-    async findOneByType(type) {
-        return this.profilesService.findOneByType(type);
+    async findAllByType(type) {
+        return this.profilesService.findAllByType(type);
     }
     async findOne(id) {
         return this.profilesService.findOne(id);
@@ -46,12 +46,12 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ProfilesController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Get)('type/:type'),
+    (0, common_1.Get)('by-type/:type'),
     __param(0, (0, common_1.Param)('type')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], ProfilesController.prototype, "findOneByType", null);
+], ProfilesController.prototype, "findAllByType", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
@@ -60,7 +60,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ProfilesController.prototype, "findOne", null);
 __decorate([
-    (0, common_1.Post)(),
+    (0, common_1.Post)('add/'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

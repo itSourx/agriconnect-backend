@@ -1,8 +1,13 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
+import { BlacklistService } from '../auth/blacklist.service';
+import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
+import * as nodemailer from 'nodemailer';
+
+
 
 
 
@@ -14,7 +19,11 @@ export class UsersService {
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
   private readonly tableName = process.env.AIRTABLE_USERS_TABLE;
 
-  constructor(private readonly profilesService: ProfilesService) {} // Injection de ProfilesService
+  constructor(
+    private readonly blacklistService: BlacklistService, // Injectez BlacklistService
+    private readonly profilesService: ProfilesService,   // Injectez ProfilesService
+  ) {}
+
 
   private getHeaders() {
     return {
@@ -27,17 +36,70 @@ export class UsersService {
     return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
   }
 
+  // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké
+  private async verifyPassword(storedHash: string, plainTextPassword: string): Promise<boolean> {
+    return bcrypt.compare(plainTextPassword, storedHash);
+  }
+
   // Hacher le mot de passe avant de créer un utilisateur
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 10; // Nombre de tours de hachage (recommandé : 10)
     return await bcrypt.hash(password, saltRounds);
   }
-  /* // Vérifier si un mot de passe fourni correspond au mot de passe haché stocké dans Airtable
-private async verifyPassword(storedHash: string, plainTextPassword: string): Promise<boolean> {
-  return bcrypt.compare(plainTextPassword, storedHash);
-}*/
 
-async findAll(page = 1, perPage = 10): Promise<any[]> {
+  // Changer le mot de passe d'un utilisateur
+    async changePassword(userId: string, oldPassword: string, newPassword: string, token: string): Promise<any> {
+      // Récupérer l'utilisateur actuel
+      const user = await this.findOne(userId);
+  
+      if (!user) {
+        throw new UnauthorizedException('Utilisateur introuvable.');
+      }
+  
+      // Vérifier que l'ancien mot de passe est correct
+      const passwordHash = user.fields.password; // Champ contenant le mot de passe haché
+      const isPasswordValid = await this.verifyPassword(passwordHash, oldPassword);
+  
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Ancien mot de passe incorrect.');
+      }
+  
+      // Valider le nouveau mot de passe
+      if (newPassword.length < 8) {
+        throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      }
+  
+      // Hacher le nouveau mot de passe
+      const hashedNewPassword = await this.hashPassword(newPassword);
+  
+      // Mettre à jour le mot de passe dans Airtable
+      try {
+        const response = await axios.patch(
+          `${this.getUrl()}/${userId}`,
+          { fields: { password: hashedNewPassword } },
+          { headers: this.getHeaders() }
+        );
+  
+      // Appeler la fonction logout pour déconnecter l'utilisateur
+      await this.logout(token);
+
+      return { message: 'Mot de passe mis à jour avec succès! Vous avez été déconnecté.' };
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du mot de passe :', error);
+        throw new Error('Impossible de mettre à jour le mot de passe.');
+      }
+    }
+  // Ajouter le token à la liste noire (si applicable)
+  private async logout(token: string): Promise<void> {
+    if (!token) {
+      return; // Si aucun token n'est fourni, ne faites rien
+    }
+
+    // Ajouter le token à la liste noire
+    await this.blacklistService.add(token);
+  }
+
+async findAll(page = 1, perPage = 20): Promise<any[]> {
   const offset = (page - 1) * perPage;
   const response = await axios.get(this.getUrl(), {
     headers: this.getHeaders(),
@@ -49,6 +111,22 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
   return response.data.records;
 }
 
+// Récupérer tous les utilisateurs filtrés par profil
+  async findUsersByProfile(profileId: string): Promise<any[]> {
+    try {
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          filterByFormula: `({profile}="${profileId}")`, // Filtrer par ID de profil
+        },
+      });
+
+      return response.data.records;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+      throw new Error('Impossible de récupérer les utilisateurs.');
+    }
+  }
 
   // Récupérer un utilisateur par ID
   async findOne(id: string): Promise<any> {
@@ -66,9 +144,19 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
         },
       });
 
-      if (response.data.records.length > 0) {
+      /*if (response.data.records.length > 0) {
         return response.data.records[0];
-      }
+      }*/
+      if (response.data.records.length > 0) {
+        const user = response.data.records[0];
+    
+       // Normalisez le champ "email" pour s'assurer qu'il est une chaîne de texte
+      if (Array.isArray(user.fields.email)) {
+        user.fields.type = user.fields.email[0]; // Prenez le premier élément du tableau
+        }
+      
+          return user;
+        } 
 
       return null; // Aucun utilisateur trouvé avec cet email
     } catch (error) {
@@ -171,19 +259,147 @@ async findAll(page = 1, perPage = 10): Promise<any[]> {
       throw new Error('Impossible de mettre à jour l’utilisateur.');
     }
   }
-  /*async update(id: string, data: any): Promise<any> {
-    const response = await axios.patch(
-      `${this.getUrl()}/${id}`,
-      { fields: data },
-      { headers: this.getHeaders() }
-    );
-    return response.data;
-  }*/
-
 
   // Supprimer un utilisateur
   async delete(id: string): Promise<any> {
     const response = await axios.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
     return response.data;
+  }
+    // Récupérer tous les utilisateurs  correspondant à un profil donné
+    async findAllByProfile(profile: string): Promise<any[]> {
+      try {
+        const response = await axios.get(this.getUrl(), {
+          headers: this.getHeaders(),
+          params: {
+            filterByFormula: `({profile}="${profile}")`, // Filtrer par profil d'utilisateur
+          },
+        });
+  
+        // Normalisez les champs "catégory" si nécessaire
+        const users = response.data.records.map((user) => {
+          if (Array.isArray(user.fields.profile)) {
+            user.fields.profile = user.fields.profile[0]; // Prenez le premier élément du tableau
+          }
+          return user;
+        });
+  
+        return users; // Retourne tous les enregistrements correspondants
+      } catch (error) {
+        console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
+        throw new Error('Impossible de récupérer les utilisateurs.');
+      }
+    }
+  // Générer un mot de passe aléatoire de 9 caractères
+  private generateRandomPassword(length: number = 9): string {
+    const possibleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += possibleCharacters.charAt(Math.floor(Math.random() * possibleCharacters.length));
+    }
+    return password;
+  }
+
+  // Réinitialiser le mot de passe d'un utilisateur
+  async resetPassword(email: string): Promise<any> {
+    // Vérifier si l'utilisateur existe
+    const user = await this.findOneByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('Aucun utilisateur trouvé avec cet email.');
+    }
+
+    // Générer un mot de passe temporaire
+    const temporaryPassword = this.generateRandomPassword(9);
+
+    // Hacher le mot de passe temporaire
+    const hashedTemporaryPassword = await bcrypt.hash(temporaryPassword, 10);
+
+    try {
+      // Enregistrer le mot de passe temporaire dans le champ resetPassword
+      const response = await axios.patch(
+        `${this.getUrl()}/${user.id}`,
+        { fields: { resetPassword: hashedTemporaryPassword } },
+        { headers: this.getHeaders() }
+      );
+
+      // Retourner le mot de passe temporaire (non haché) pour une éventuelle notification
+      //return { message: 'Mot de passe temporaire généré avec succès.', temporaryPassword };
+
+    // Envoyer le mot de passe temporaire par email
+    await this.sendPasswordResetEmail(email, temporaryPassword);
+
+    return { message: 'Un mot de passe temporaire a été envoyé à votre adresse email.' };
+
+    } catch (error) {
+      console.error('Erreur lors de la réinitialisation du mot de passe :', error);
+      throw new Error('Impossible de réinitialiser le mot de passe.');
+    }
+  }
+
+  private async sendPasswordResetEmail(email: string, temporaryPassword: string): Promise<void> {
+    const transporter = nodemailer.createTransport({
+      host: 'mail.sourx.com', // Remplacez par l'adresse SMTP de votre hébergeur
+      port: 465, // Port SMTP (généralement 587 pour TLS ou 465 pour SSL)
+      secure: true, // Utilisez `true` si le port est 465 (SSL)
+      auth: {
+        user: process.env.EMAIL_USER, // Votre adresse email
+        pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
+      },
+      tls: {
+        rejectUnauthorized: false, // Ignorer les certificats non valides (si nécessaire)
+      },
+    });
+  
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // Expéditeur
+      to: email, // Destinataire
+      subject: 'Réinitialisation de votre mot de passe',
+      text: `Votre nouveau mot de passe temporaire est : ${temporaryPassword}. Veuillez le changer dès que possible.`,
+    };
+  
+    await transporter.sendMail(mailOptions);
+  }
+
+  async validateResetPassword(email: string, temporaryPassword: string, newPassword: string): Promise<any> {
+    // Récupérer l'utilisateur par email
+    const user = await this.findOneByEmail(email);
+  
+    if (!user) {
+      throw new NotFoundException('Aucun utilisateur trouvé avec cet email.');
+    }
+  
+    // Vérifier si le mot de passe temporaire est valide
+    const storedTemporaryPassword = user.fields.resetPassword;
+    if (!storedTemporaryPassword) {
+      throw new UnauthorizedException('Aucun mot de passe temporaire enregistré.');
+    }
+  
+    const isPasswordValid = await bcrypt.compare(temporaryPassword, storedTemporaryPassword);
+  
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mot de passe temporaire incorrect.');
+    }
+  
+    // Valider le nouveau mot de passe
+    if (newPassword.length < 8) {
+      throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+    }
+  
+    // Hacher le nouveau mot de passe
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+  
+    try {
+      // Mettre à jour le mot de passe permanent et effacer le champ resetPassword
+      await axios.patch(
+        `${this.getUrl()}/${user.id}`,
+        { fields: { password: hashedNewPassword, resetPassword: '' } },
+        { headers: this.getHeaders() }
+      );
+  
+      return { message: 'Mot de passe mis à jour avec succès.' };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du mot de passe :', error);
+      throw new Error('Impossible de mettre à jour le mot de passe.');
+    }
   }
 }

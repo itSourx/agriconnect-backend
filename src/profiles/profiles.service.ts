@@ -56,25 +56,6 @@ export class ProfilesService {
 
 
   // Récupérer un profil par son nom (type d'utilisateur)
-  /*async findOneByType(profileType: string): Promise<any | null> {
-    try {
-      const response = await axios.get(this.getUrl(), {
-        headers: this.getHeaders(),
-        params: {
-          filterByFormula: `({profileType}="${profileType}")`, // Formulaire Airtable pour filtrer par type
-        },
-      });
-
-      if (response.data.records.length > 0) {
-        return response.data.records[0];
-      }
-
-      return null; // Aucun profil trouvé avec ce type
-    } catch (error) {
-      console.error('Erreur lors de la recherche du profil :', error);
-      return null;
-    }
-  }*/
     async findOneByType(type: string): Promise<any | null> {
       try {
         const response = await axios.get(this.getUrl(), {
@@ -101,4 +82,30 @@ export class ProfilesService {
         return null;
       }
     }
+
+    
+  // Récupérer tous les profils correspondant à un type donné
+  async findAllByType(type: string): Promise<any[]> {
+    try {
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          filterByFormula: `({type}="${type}")`, // Filtrer par nom du profil
+        },
+      });
+
+      // Normalisez les champs "type" si nécessaire
+      const profiles = response.data.records.map((profile) => {
+        if (Array.isArray(profile.fields.type)) {
+          profile.fields.type = profile.fields.type[0]; // Prenez le premier élément du tableau
+        }
+        return profile;
+      });
+
+      return profiles; // Retourne tous les enregistrements correspondants
+    } catch (error) {
+      console.error('Erreur lors de la récupération des profils par type :', error);
+      throw new Error('Impossible de récupérer les profils.');
+    }
+  }
 }

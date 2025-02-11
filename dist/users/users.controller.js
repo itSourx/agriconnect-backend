@@ -16,6 +16,7 @@ exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
 const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./create-user.dto");
+const change_password_dto_1 = require("./change-password.dto");
 const auth_guard_1 = require("../auth/auth.guard");
 let UsersController = class UsersController {
     constructor(usersService) {
@@ -23,6 +24,12 @@ let UsersController = class UsersController {
     }
     async findAll() {
         return this.usersService.findAll();
+    }
+    async findAllByProfile(profile) {
+        return this.usersService.findAllByProfile(profile);
+    }
+    async findOneByEmail(email) {
+        return this.usersService.findOneByEmail(email);
     }
     async findOne(id) {
         return this.usersService.findOne(id);
@@ -39,6 +46,19 @@ let UsersController = class UsersController {
     async delete(id) {
         return this.usersService.delete(id);
     }
+    async changePassword(id, changePasswordDto, req) {
+        const { oldPassword, newPassword } = changePasswordDto;
+        const token = req.headers.authorization?.split(' ')[1];
+        return this.usersService.changePassword(id, oldPassword, newPassword, token);
+    }
+    async resetPassword(body) {
+        const { email } = body;
+        return this.usersService.resetPassword(email);
+    }
+    async validateResetPassword(body) {
+        const { email, temporaryPassword, newPassword } = body;
+        return this.usersService.validateResetPassword(email, temporaryPassword, newPassword);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -48,6 +68,20 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('by-profile/:profile'),
+    __param(0, (0, common_1.Param)('profile')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findAllByProfile", null);
+__decorate([
+    (0, common_1.Get)('email/:email'),
+    __param(0, (0, common_1.Param)('email')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findOneByEmail", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -55,7 +89,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findOne", null);
 __decorate([
-    (0, common_1.Post)(),
+    (0, common_1.Post)('add/'),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -87,6 +121,32 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "delete", null);
+__decorate([
+    (0, common_1.Put)('change-password/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UsePipes)(new common_1.ValidationPipe()),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, change_password_dto_1.ChangePasswordDto, Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Post)('reset-password'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "resetPassword", null);
+__decorate([
+    (0, common_1.Post)('validate-reset-password'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "validateResetPassword", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

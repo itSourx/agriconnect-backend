@@ -30,7 +30,18 @@ let AuthService = class AuthService {
         return null;
     }
     async login(user) {
-        const payload = { email: user.email, sub: user.id };
+        const userProfile = await this.usersService.findOneByEmail(user.email);
+        if (!userProfile) {
+            throw new Error('Utilisateur introuvable.');
+        }
+        const profile = Array.isArray(userProfile.fields.profileType)
+            ? userProfile.fields.profileType[0]
+            : userProfile.fields.profileType;
+        const payload = {
+            email: userProfile.fields.email,
+            userId: userProfile.id,
+            profile: profile,
+        };
         return {
             access_token: this.jwtService.sign(payload),
         };

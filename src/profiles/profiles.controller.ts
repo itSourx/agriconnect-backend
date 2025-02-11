@@ -10,27 +10,21 @@ export class ProfilesController {
     return this.profilesService.findAll();
   }
 
-  // Nouvelle route pour rechercher un profil par type
-  @Get('type/:type')
-  async findOneByType(@Param('type') type: string): Promise<any> {
-    return this.profilesService.findOneByType(type);
+  // Endpoint pour récupérer tous les profils par type
+  @Get('by-type/:type')
+  async findAllByType(@Param('type') type: string): Promise<any[]> {
+    return this.profilesService.findAllByType(type);
   }
-
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.profilesService.findOne(id);
   }
 
-  @Post()
+  @Post('add/')
   async create(@Body() data: any) {
     return this.profilesService.create(data);
   }
-  /*@Post()
-  @UsePipes(new ValidationPipe())
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }*/
 
   @Put(':id')
   //@UseGuards(AuthGuard) // Protection avec JWT

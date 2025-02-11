@@ -25,12 +25,36 @@ export class AuthService {
 
     return null;
   }
-
+  
   // Générer un jeton JWT pour l'utilisateur
-  async login(user: any) {
-    const payload = { email: user.email, sub: user.id };
+  /*async login(user: any) {
+    const payload = { email: user.email, userId: user.id, profile : user.profileType};
     return {
       access_token: this.jwtService.sign(payload),
     };
-  }
+  }*/
+    async login(user: any) {
+      // Récupérer les détails de l'utilisateur
+      const userProfile = await this.usersService.findOneByEmail(user.email);
+    
+      if (!userProfile) {
+        throw new Error('Utilisateur introuvable.');
+      }
+    
+      // Normaliser le champ profileType (extraire la première valeur du tableau)
+      const profile = Array.isArray(userProfile.fields.profileType) 
+        ? userProfile.fields.profileType[0] 
+        : userProfile.fields.profileType;
+    
+      // Créer le payload avec le type de profil normalisé
+      const payload = {
+        email: userProfile.fields.email,
+        userId: userProfile.id,
+        profile: profile, // Utilisez la valeur normalisée
+      };
+    
+      return {
+        access_token: this.jwtService.sign(payload),
+      };
+    }
 }
