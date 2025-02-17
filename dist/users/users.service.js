@@ -110,6 +110,7 @@ let UsersService = class UsersService {
                     filterByFormula: `({email}="${email}")`,
                 },
             });
+            console.log('Réponse brute d’Airtable :', response.data);
             if (response.data.records.length > 0) {
                 const user = response.data.records[0];
                 if (Array.isArray(user.fields.email)) {
@@ -121,7 +122,7 @@ let UsersService = class UsersService {
         }
         catch (error) {
             console.error('Erreur lors de la recherche d’utilisateur par email :', error);
-            return null;
+            throw new Error('Impossible de récupérer les données utilisateur.');
         }
     }
     async create(data) {
@@ -259,7 +260,7 @@ let UsersService = class UsersService {
         };
         await transporter.sendMail(mailOptions);
     }
-    async validateResetPassword(email, temporaryPassword, newPassword) {
+    async validateResetPassword(email, temporaryPassword, newPassword, token) {
         const user = await this.findOneByEmail(email);
         if (!user) {
             throw new common_1.NotFoundException('Aucun utilisateur trouvé avec cet email.');
@@ -277,12 +278,23 @@ let UsersService = class UsersService {
         }
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
         try {
-            await axios_1.default.patch(`${this.getUrl()}/${user.id}`, { fields: { password: hashedNewPassword, resetPassword: '' } }, { headers: this.getHeaders() });
-            return { message: 'Mot de passe mis à jour avec succès.' };
+            const response = await axios_1.default.patch(`${this.getUrl()}/${user.id}`, { fields: { password: hashedNewPassword, resetPassword: '' } }, { headers: this.getHeaders() });
+            await this.logout(token);
+            return { message: 'Mot de passe mis à jour avec succès! Vous avez été déconnecté.' };
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du mot de passe :', error);
             throw new Error('Impossible de mettre à jour le mot de passe.');
+        }
+    }
+    async getProfileById(id) {
+        try {
+            const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération du profil :', error);
+            return null;
         }
     }
 };

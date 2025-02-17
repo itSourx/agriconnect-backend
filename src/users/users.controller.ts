@@ -83,10 +83,16 @@ export class UsersController {
   }
 
   @Post('validate-reset-password')
-  @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
-async validateResetPassword(@Body() body: { email: string; temporaryPassword: string; newPassword: string }): Promise<any> {
+  //@UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
+async validateResetPassword(
+  @Body() body: { email: string; temporaryPassword: string; newPassword: string },
+  @Request() req, // Accéder à la requête via @Request()
+  ): Promise<any> {
   const { email, temporaryPassword, newPassword } = body;
 
-  return this.usersService.validateResetPassword(email, temporaryPassword, newPassword);
+    // Extraire le token de l'en-tête Authorization
+    const token = req.headers.authorization?.split(' ')[1];
+
+  return this.usersService.validateResetPassword(email, temporaryPassword, newPassword, token);
 }
 }

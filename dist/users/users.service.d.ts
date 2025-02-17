@@ -24,5 +24,6 @@ export declare class UsersService {
     private generateRandomPassword;
     resetPassword(email: string): Promise<any>;
     private sendPasswordResetEmail;
-    validateResetPassword(email: string, temporaryPassword: string, newPassword: string): Promise<any>;
+    validateResetPassword(email: string, temporaryPassword: string, newPassword: string, token: string): Promise<any>;
+    getProfileById(id: string): Promise<any>;
 }

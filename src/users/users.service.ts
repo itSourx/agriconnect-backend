@@ -89,6 +89,8 @@ export class UsersService {
         throw new Error('Impossible de mettre à jour le mot de passe.');
       }
     }
+  
+  
   // Ajouter le token à la liste noire (si applicable)
   private async logout(token: string): Promise<void> {
     if (!token) {
@@ -147,6 +149,8 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
       /*if (response.data.records.length > 0) {
         return response.data.records[0];
       }*/
+
+      console.log('Réponse brute d’Airtable :', response.data);
       if (response.data.records.length > 0) {
         const user = response.data.records[0];
     
@@ -155,13 +159,15 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
         user.fields.type = user.fields.email[0]; // Prenez le premier élément du tableau
         }
       
-          return user;
+        return user;
         } 
 
       return null; // Aucun utilisateur trouvé avec cet email
     } catch (error) {
       console.error('Erreur lors de la recherche d’utilisateur par email :', error);
-      return null;
+      //return null;
+      throw new Error('Impossible de récupérer les données utilisateur.');
+
     }
   }
 
@@ -360,7 +366,7 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
     await transporter.sendMail(mailOptions);
   }
 
-  async validateResetPassword(email: string, temporaryPassword: string, newPassword: string): Promise<any> {
+  async validateResetPassword(email: string, temporaryPassword: string, newPassword: string, token: string): Promise<any> {
     // Récupérer l'utilisateur par email
     const user = await this.findOneByEmail(email);
   
@@ -390,16 +396,32 @@ async findAll(page = 1, perPage = 20): Promise<any[]> {
   
     try {
       // Mettre à jour le mot de passe permanent et effacer le champ resetPassword
-      await axios.patch(
+      const response = await axios.patch(
         `${this.getUrl()}/${user.id}`,
         { fields: { password: hashedNewPassword, resetPassword: '' } },
         { headers: this.getHeaders() }
       );
   
-      return { message: 'Mot de passe mis à jour avec succès.' };
+      //return { message: 'Mot de passe mis à jour avec succès.' };
+      // Appeler la fonction logout pour déconnecter l'utilisateur
+      await this.logout(token);
+
+      return { message: 'Mot de passe mis à jour avec succès! Vous avez été déconnecté.' };
+      
     } catch (error) {
       console.error('Erreur lors de la mise à jour du mot de passe :', error);
       throw new Error('Impossible de mettre à jour le mot de passe.');
+    }
+  }
+
+  //récupérer les détails du profil
+  async getProfileById(id: string): Promise<any> {
+    try {
+      const response = await axios.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la récupération du profil :', error);
+      return null;
     }
   }
 }

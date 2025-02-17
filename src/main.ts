@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import * as winston from 'winston';
 import * as path from 'path'; // Importe path pour gérer les chemins de fichiers
+import { HttpExceptionFilter } from './filters/http-exception.filter';
 
 //import { TemplateModule } from './template/template.module';
 
@@ -44,10 +45,8 @@ async function bootstrap() {
   const publicDir = path.join(__dirname, '..', 'src', 'public');
   app.useStaticAssets(publicDir); //, { prefix: '/static/' }
 
-    // Définir la route racine pour rediriger vers index.html
-    /*app.use('/', (req, res) => {
-      res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-    });*/
+  // Ajouter un filtre d'exception global
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);

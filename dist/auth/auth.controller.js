@@ -24,11 +24,18 @@ let AuthController = class AuthController {
     }
     async login(body) {
         const { email, password } = body;
-        const user = await this.authService.validateUser(email, password);
-        if (!user) {
-            throw new common_2.UnauthorizedException('Invalid credentials');
+        if (!email || !password) {
+            throw new common_2.UnauthorizedException('Email et mot de passe sont requis.');
         }
-        return this.authService.login(user);
+        const user = await this.authService.validateUser(email, password);
+        if (user.resetPasswordUsed) {
+            return {
+                user,
+                message: 'Vous devez changer votre mot de passe et vous reconnecter.',
+                requiresPasswordChange: true,
+            };
+        }
+        return this.authService.login({ email, password });
     }
     async logout(req) {
         const token = req.headers.authorization?.split(' ')[1];

@@ -20,5 +20,5 @@ export declare class UsersController {
         email: string;
         temporaryPassword: string;
         newPassword: string;
-    }): Promise<any>;
+    }, req: any): Promise<any>;
 }

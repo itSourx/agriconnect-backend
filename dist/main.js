@@ -5,6 +5,7 @@ const app_module_1 = require("./app.module");
 const dotenv = require("dotenv");
 const winston = require("winston");
 const path = require("path");
+const http_exception_filter_1 = require("./filters/http-exception.filter");
 dotenv.config();
 const logger = winston.createLogger({
     level: 'info',
@@ -26,6 +27,7 @@ async function bootstrap() {
     app.useLogger(logger);
     const publicDir = path.join(__dirname, '..', 'src', 'public');
     app.useStaticAssets(publicDir);
+    app.useGlobalFilters(new http_exception_filter_1.HttpExceptionFilter());
     await app.listen(port);
     console.log(`Application is running on: ${await app.getUrl()}`);
 }

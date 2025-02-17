@@ -7,8 +7,6 @@ export declare class AuthController {
     login(body: {
         email: string;
         password: string;
-    }): Promise<{
-        access_token: string;
-    }>;
+    }): Promise<any>;
     logout(req: any): Promise<any>;
 }

@@ -3,6 +3,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { BlacklistService } from './blacklist.service';
+import { UnauthorizedException } from '@nestjs/common'; // Ajoutez cette ligne
+
 
 
 @Injectable()
@@ -12,49 +14,93 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly blacklistService: BlacklistService,
   ) {}
-
-  // Valider un utilisateur par email et mot de passe
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.usersService.findOneByEmail(email);
-
-    if (user && (await bcrypt.compare(password, user.fields.password))) {
-      // Supprimez les champs sensibles avant de retourner l'utilisateur
-      const { password: _, ...sanitizedUser } = user.fields;
-      return sanitizedUser;
-    }
-
-    return null;
-  }
   
-  // Générer un jeton JWT pour l'utilisateur
-  /*async login(user: any) {
-    const payload = { email: user.email, userId: user.id, profile : user.profileType};
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
-  }*/
-    async login(user: any) {
-      // Récupérer les détails de l'utilisateur
-      const userProfile = await this.usersService.findOneByEmail(user.email);
-    
-      if (!userProfile) {
-        throw new Error('Utilisateur introuvable.');
-      }
-    
-      // Normaliser le champ profileType (extraire la première valeur du tableau)
-      const profile = Array.isArray(userProfile.fields.profileType) 
-        ? userProfile.fields.profileType[0] 
-        : userProfile.fields.profileType;
-    
-      // Créer le payload avec le type de profil normalisé
-      const payload = {
-        email: userProfile.fields.email,
-        userId: userProfile.id,
-        profile: profile, // Utilisez la valeur normalisée
-      };
-    
-      return {
-        access_token: this.jwtService.sign(payload),
-      };
+  async validateUser(email: string, password: string): Promise<any> {
+    console.log('Tentative de validation pour l’email :', email);
+
+    // Récupérer l'utilisateur depuis Airtable
+    const user = await this.usersService.findOneByEmail(email);
+    console.log('Données brutes de l’utilisateur :', user);
+  
+    if (!user) {
+      throw new UnauthorizedException('Identifiants incorrects.');
     }
+  
+    // Vérifier si le mot de passe est correct
+    //const isPasswordValid = await bcrypt.compare(password, user.fields.password);
+
+    // Vérifier si un mot de passe temporaire existe
+    const hasResetPassword = user.fields.resetPassword;
+
+    let isPasswordValid = false;
+
+    if (hasResetPassword) {
+      // Vérifier le mot de passe temporaire
+      isPasswordValid = await bcrypt.compare(password, user.fields.resetPassword);
+    } else {
+      // Vérifier le mot de passe habituel
+      isPasswordValid = await bcrypt.compare(password, user.fields.password);
+    }
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Identifiants incorrects.');
+    }
+  
+    
+    // Extraire les détails de l'utilisateur
+    const sanitizedUser = {
+      id: user.id,
+      email: user.fields.email || null,
+      firstName: user.fields.FirstName || null, // Utilisez "FirstName" comme dans les logs
+      lastName: user.fields.LastName || null,   // Utilisez "LastName" comme dans les logs
+      address: user.fields.address || null,     // Ajoutez cette ligne si le champ existe
+      photo: user.fields.Photo?.[0]?.url || null, // URL de la photo (si c'est un champ Pièce jointe)
+      profileType: user.fields.profileType?.[0] || null, // Type de profil (ex. "AGRICULTEUR")
+      products: user.fields.ProductsName || [], // Liste des noms des produits
+      resetPasswordUsed: !!hasResetPassword, // Indique si le mot de passe temporaire a été utilisé
+    };
+  
+    console.log('Données nettoyées de l’utilisateur :', sanitizedUser); // Log pour vérification
+  
+    return sanitizedUser;
+  }
+
+  async login(user: any): Promise<any> {
+    console.log('Tentative de connexion avec :', user.email);
+  
+    try {
+      const userProfile = await this.validateUser(user.email, user.password);
+      console.log('Utilisateur validé :', userProfile);
+  
+      if (!userProfile) {
+        throw new UnauthorizedException('Identifiants incorrects.');
+      }
+  
+      const payload = {
+        sub: userProfile.id,
+        email: userProfile.email,
+        profile: userProfile.profileType,
+      };
+  
+      const accessToken = this.jwtService.sign(payload);
+  
+      return {
+        access_token: accessToken,
+        user: {
+          id: userProfile.id,
+          email: userProfile.email,
+          firstName: userProfile.FirstName,
+          lastName: userProfile.LastName,
+          photo: userProfile.Photo,
+          profileType: userProfile.profileType,
+          products: userProfile.products,
+          passwordReset: userProfile.isPassReseted,
+
+        },
+      };
+    } catch (error) {
+      console.error('Erreur lors de la connexion :', error);
+      throw error; // Relancer l'erreur pour afficher un message générique au client
+    }
+  }
 }
