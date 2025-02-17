@@ -51,10 +51,11 @@ export class AuthService {
     const sanitizedUser = {
       id: user.id,
       email: user.fields.email || null,
-      firstName: user.fields.FirstName || null, // Utilisez "FirstName" comme dans les logs
-      lastName: user.fields.LastName || null,   // Utilisez "LastName" comme dans les logs
-      address: user.fields.address || null,     // Ajoutez cette ligne si le champ existe
-      photo: user.fields.Photo?.[0]?.url || null, // URL de la photo (si c'est un champ Pièce jointe)
+      FirstName: user.fields.FirstName || null, // Utilisez "FirstName" comme dans les logs
+      LastName: user.fields.LastName || null,   // Utilisez "LastName" comme dans les logs
+      Phone: user.fields.Phone || null,
+      Address: user.fields.Address || null,     // Ajoutez cette ligne si le champ existe
+      Photo: user.fields.Photo?.[0]?.url || null, // URL de la photo (si c'est un champ Pièce jointe)
       profileType: user.fields.profileType?.[0] || null, // Type de profil (ex. "AGRICULTEUR")
       products: user.fields.ProductsName || [], // Liste des noms des produits
       resetPasswordUsed: !!hasResetPassword, // Indique si le mot de passe temporaire a été utilisé
@@ -77,7 +78,7 @@ export class AuthService {
       }
   
       const payload = {
-        sub: userProfile.id,
+        id: userProfile.id,
         email: userProfile.email,
         profile: userProfile.profileType,
       };
@@ -88,10 +89,13 @@ export class AuthService {
         access_token: accessToken,
         user: {
           id: userProfile.id,
+          FirstName: userProfile.FirstName,
+          Adress: userProfile.Adress,
+          LastName: userProfile.LastName,
           email: userProfile.email,
-          firstName: userProfile.FirstName,
-          lastName: userProfile.LastName,
-          photo: userProfile.Photo,
+          Phone: userProfile.Phone,
+          Address: userProfile.Address,
+          Photo: userProfile.Photo,
           profileType: userProfile.profileType,
           products: userProfile.products,
           passwordReset: userProfile.isPassReseted,

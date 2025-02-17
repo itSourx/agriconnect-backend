@@ -43,10 +43,11 @@ let AuthService = class AuthService {
         const sanitizedUser = {
             id: user.id,
             email: user.fields.email || null,
-            firstName: user.fields.FirstName || null,
-            lastName: user.fields.LastName || null,
-            address: user.fields.address || null,
-            photo: user.fields.Photo?.[0]?.url || null,
+            FirstName: user.fields.FirstName || null,
+            LastName: user.fields.LastName || null,
+            Phone: user.fields.Phone || null,
+            Address: user.fields.Address || null,
+            Photo: user.fields.Photo?.[0]?.url || null,
             profileType: user.fields.profileType?.[0] || null,
             products: user.fields.ProductsName || [],
             resetPasswordUsed: !!hasResetPassword,
@@ -63,7 +64,7 @@ let AuthService = class AuthService {
                 throw new common_2.UnauthorizedException('Identifiants incorrects.');
             }
             const payload = {
-                sub: userProfile.id,
+                id: userProfile.id,
                 email: userProfile.email,
                 profile: userProfile.profileType,
             };
@@ -72,10 +73,13 @@ let AuthService = class AuthService {
                 access_token: accessToken,
                 user: {
                     id: userProfile.id,
+                    FirstName: userProfile.FirstName,
+                    Adress: userProfile.Adress,
+                    LastName: userProfile.LastName,
                     email: userProfile.email,
-                    firstName: userProfile.FirstName,
-                    lastName: userProfile.LastName,
-                    photo: userProfile.Photo,
+                    Phone: userProfile.Phone,
+                    Address: userProfile.Address,
+                    Photo: userProfile.Photo,
                     profileType: userProfile.profileType,
                     products: userProfile.products,
                     passwordReset: userProfile.isPassReseted,
