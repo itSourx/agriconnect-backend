@@ -3,9 +3,10 @@ import { UnauthorizedException } from '@nestjs/common'; // Ajoutez cette ligne
 import { AuthService } from './auth.service';
 import { BlacklistService } from './blacklist.service';
 import { JwtService } from '@nestjs/jwt';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { LoginDto } from './login.dto'; // Importez LoginDto
 
-
-
+@ApiTags('auth') // Groupe ce contrôleur sous le tag "auth"
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService,
@@ -26,7 +27,26 @@ export class AuthController {
     return this.authService.login({ email, password });
   }*/
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
+  @ApiOperation({ summary: 'Connexion d\'un utilisateur' }) // Description de l'opération
+  @ApiBody({ type: LoginDto }) // Modèle du corps de la requête
+  @ApiResponse({
+    status: 201,
+    description: 'Connexion réussie.',
+    schema: {
+      example: {
+        access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        user: {
+          id: 'recUSER123',
+          email: 'user@example.com',
+          name: 'John Doe',
+          profileType: 'Acheteur',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Connexion réussie.' }) // Réponse en cas de succès
+  @ApiResponse({ status: 401, description: 'Identifiants incorrects.' }) // Réponse en cas d'échec
+  async login(@Body() body: LoginDto) {
     const { email, password } = body;
 
     if (!email || !password) {

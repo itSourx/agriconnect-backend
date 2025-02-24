@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const common_2 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const blacklist_service_1 = require("./blacklist.service");
+const swagger_1 = require("@nestjs/swagger");
+const login_dto_1 = require("./login.dto");
 let AuthController = class AuthController {
     constructor(authService, blacklistService) {
         this.authService = authService;
@@ -49,9 +51,28 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('login'),
+    (0, swagger_1.ApiOperation)({ summary: 'Connexion d\'un utilisateur' }),
+    (0, swagger_1.ApiBody)({ type: login_dto_1.LoginDto }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: 'Connexion réussie.',
+        schema: {
+            example: {
+                access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                user: {
+                    id: 'recUSER123',
+                    email: 'user@example.com',
+                    name: 'John Doe',
+                    profileType: 'Acheteur',
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Connexion réussie.' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Identifiants incorrects.' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
@@ -62,6 +83,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 exports.AuthController = AuthController = __decorate([
+    (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService,
         blacklist_service_1.BlacklistService])

@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const products_service_1 = require("./products.service");
 const create_product_dto_1 = require("./create-product.dto");
 const auth_guard_1 = require("../auth/auth.guard");
+const swagger_1 = require("@nestjs/swagger");
 let ProductsController = class ProductsController {
     constructor(productsService) {
         this.productsService = productsService;
@@ -85,6 +86,44 @@ __decorate([
     (0, common_1.Post)('add/'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
+    (0, swagger_1.ApiOperation)({ summary: 'Création d\'un produit' }),
+    (0, swagger_1.ApiBody)({ type: create_product_dto_1.CreateProductDto }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: 'Création du produit réussie.',
+        schema: {
+            example: {
+                "id": "rec4GnZPae1E7FLo6",
+                "fields": {
+                    "Name": "Tomates",
+                    "description": "Naturel sans angrais chimiques",
+                    "price": 25,
+                    "quantity": 100,
+                    "user": [
+                        "recx5GykDnqXoWY5s"
+                    ],
+                    "category": "Fruits",
+                    "id": "rec4GnZPae1E7FLo6",
+                    "CreatedDate": "2025-02-15T06:29:40.000Z",
+                    "profile": [
+                        "recqZJD9Q1qEyW3AT"
+                    ],
+                    "userLastName": [
+                        "KPADONOU"
+                    ],
+                    "userFirstName": [
+                        "Patrique"
+                    ],
+                    "farmerId": [
+                        "recx5GykDnqXoWY5s"
+                    ]
+                }
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Création du produit réussie.' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Aucun token fourni.' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Requête mal envoyée, il manque un paramètre dont la valeur n\'a pas été fournie.' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
