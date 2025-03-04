@@ -1,5 +1,6 @@
-import { IsEmail, IsString, IsNumber } from 'class-validator';
+import { IsEmail, IsString, IsNumber, IsArray} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
 
 export class CreateProductDto {
 
@@ -21,7 +22,7 @@ export class CreateProductDto {
     example: '25',
     description: 'La quantité du produit',
   })
-  @IsString()
+  //@IsString()
   @IsNumber()
   quantity: number;
 
@@ -45,4 +46,13 @@ export class CreateProductDto {
   })
   @IsEmail()
   email: string;
+
+  @ApiProperty({
+    example: ' "Photo": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZr9eQcb7-uBiQkX3yXiUWfF_aOd68UyFi1g&s"] ',
+    description: 'Tableau d\'URLs des photos du produit',
+  })
+  @IsArray()
+  @IsString({ each: true })
+  Photo: string[];
 }
+

@@ -101,11 +101,13 @@ export class ProductsController {
    }
 
   @Put(':id')
+  @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() data: any) {
     return this.productsService.update(id, data);
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard)
   async delete(@Param('id') id: string) {
     return this.productsService.delete(id);
   }

@@ -36,7 +36,6 @@ __decorate([
         example: '25',
         description: 'La quantité du produit',
     }),
-    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateProductDto.prototype, "quantity", void 0);
@@ -64,4 +63,13 @@ __decorate([
     (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: ' "Photo": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZr9eQcb7-uBiQkX3yXiUWfF_aOd68UyFi1g&s"] ',
+        description: 'Tableau d\'URLs des photos du produit',
+    }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], CreateProductDto.prototype, "Photo", void 0);
 //# sourceMappingURL=create-product.dto.js.map

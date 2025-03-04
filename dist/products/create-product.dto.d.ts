@@ -5,4 +5,5 @@ export declare class CreateProductDto {
     price: number;
     category: string;
     email: string;
+    Photo: string[];
 }
