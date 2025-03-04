@@ -65,8 +65,9 @@ __decorate([
 ], CreateProductDto.prototype, "email", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        example: ' "Photo": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZr9eQcb7-uBiQkX3yXiUWfF_aOd68UyFi1g&s"] ',
-        description: 'Tableau d\'URLs des photos du produit',
+        description: 'Array of photo URLs for the product',
+        type: [String],
+        example: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'],
     }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsString)({ each: true }),

@@ -48,8 +48,9 @@ export class CreateProductDto {
   email: string;
 
   @ApiProperty({
-    example: ' "Photo": ["https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZr9eQcb7-uBiQkX3yXiUWfF_aOd68UyFi1g&s"] ',
-    description: 'Tableau d\'URLs des photos du produit',
+    description: 'Array of photo URLs for the product',
+    type: [String], // Indique que c'est un tableau de chaînes de caractères
+    example: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'],
   })
   @IsArray()
   @IsString({ each: true })
