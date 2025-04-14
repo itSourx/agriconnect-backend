@@ -5,14 +5,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const axios_1 = require("axios");
 const dotenv = require("dotenv");
+const products_service_1 = require("../products/products.service");
 dotenv.config();
 let OrdersService = class OrdersService {
-    constructor() {
+    constructor(productsService) {
+        this.productsService = productsService;
         this.apiKey = process.env.AIRTABLE_API_KEY;
         this.baseId = process.env.AIRTABLE_BASE_ID;
         this.tableName = process.env.AIRTABLE_ORDERS_TABLE;
@@ -38,26 +43,68 @@ let OrdersService = class OrdersService {
         return response.data.records;
     }
     async findOne(id) {
-        const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
-        return response.data;
+        try {
+            const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération de la commande :', error.response?.data || error.message);
+            throw new Error('Commande introuvable.');
+        }
     }
     async create(data) {
         try {
-            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: data }] }, { headers: this.getHeaders() });
+            const formattedData = {
+                buyer: data.buyerId,
+                products: data.products.map(product => product.id),
+                totalPrice: 0,
+                Qty: data.products.map(product => product.quantity).join(' , '),
+            };
+            let totalPrice = 0;
+            for (const product of data.products) {
+                const productRecord = await this.productsService.findOne(product.id);
+                totalPrice += productRecord.fields.price * product.quantity;
+            }
+            formattedData.totalPrice = totalPrice;
+            console.log('Données formatées pour Airtable :', formattedData);
+            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
+            console.log('Commande créée avec succès :', response.data);
             return response.data.records[0];
         }
         catch (error) {
-            console.error('Erreur lors de la création de la commande :', error);
+            console.error('Erreur lors de la création de la commande :', error.response?.data || error.message);
             throw new Error('Impossible de créer la commande.');
         }
     }
     async update(id, data) {
         try {
-            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
+            const existingOrder = await this.findOne(id);
+            if (!existingOrder) {
+                throw new Error('Commande introuvable.');
+            }
+            const currentStatus = existingOrder.fields.status;
+            if (currentStatus !== 'pending') {
+                throw new Error('Impossible de modifier une commande déjà traitée.');
+            }
+            const formattedData = {
+                products: data.products.map(product => product.id),
+                Qty: data.products.map(product => product.quantity).join(' , '),
+                status: data.status || 'pending',
+                totalPrice: 0,
+            };
+            let totalPrice = 0;
+            for (const product of data.products) {
+                const productRecord = await this.productsService.findOne(product.id);
+                totalPrice += productRecord.fields.price * product.quantity;
+            }
+            formattedData.totalPrice = totalPrice;
+            console.log('Données formatées pour la mise à jour :', formattedData);
+            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: formattedData }, { headers: this.getHeaders() });
+            console.log('Commande mise à jour avec succès :', response.data);
             return response.data;
         }
         catch (error) {
-            console.error('Erreur lors de la mise à jour de la commande :', error);
+            console.error('Erreur lors de la mise à jour de la commande :', error.response?.data || error.message);
             throw new Error('Impossible de mettre à jour la commande.');
         }
     }
@@ -71,9 +118,33 @@ let OrdersService = class OrdersService {
             throw new Error('Impossible de supprimer la commande.');
         }
     }
+    async updateStatus(id, status) {
+        try {
+            const existingOrder = await this.findOne(id);
+            if (!existingOrder) {
+                throw new Error('Commande introuvable.');
+            }
+            const currentStatus = existingOrder.fields.status;
+            const allowedStatusTransitions = {
+                pending: ['confirmed'],
+                confirmed: ['delivered'],
+            };
+            if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
+                throw new Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
+            }
+            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: { status } }, { headers: this.getHeaders() });
+            console.log('Statut de la commande mis à jour avec succès :', response.data);
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la mise à jour du statut de la commande :', error.response?.data || error.message);
+            throw new Error('Impossible de mettre à jour le statut de la commande.');
+        }
+    }
 };
 exports.OrdersService = OrdersService;
 exports.OrdersService = OrdersService = __decorate([
-    (0, common_1.Injectable)()
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [products_service_1.ProductsService])
 ], OrdersService);
 //# sourceMappingURL=orders.service.js.map

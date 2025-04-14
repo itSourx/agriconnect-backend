@@ -28,7 +28,7 @@ export class ProductsService {
   }
 
   
-  async findAll(page = 1, perPage = 10): Promise<any[]> {
+  async findAll(page = 1, perPage = 20): Promise<any[]> {
     const offset = (page - 1) * perPage;
     const response = await axios.get(this.getUrl(), {
       headers: this.getHeaders(),
@@ -183,6 +183,7 @@ export class ProductsService {
         console.error('Erreur lors de la récupération des produits par catégorie :', error);
         throw new Error('Impossible de récupérer les produits.');
       }
-    }
+  }
+  
 
 }

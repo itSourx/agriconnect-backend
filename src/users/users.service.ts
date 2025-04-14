@@ -101,17 +101,17 @@ export class UsersService {
     await this.blacklistService.add(token);
   }
 
-async findAll(page = 1, perPage = 20): Promise<any[]> {
-  const offset = (page - 1) * perPage;
-  const response = await axios.get(this.getUrl(), {
-    headers: this.getHeaders(),
-    params: {
-      pageSize: perPage,
-      offset: offset > 0 ? offset.toString() : undefined,
-    },
-  });
-  return response.data.records;
-}
+  async findAll(page = 1, perPage = 20): Promise<any[]> {
+    const offset = (page - 1) * perPage;
+    const response = await axios.get(this.getUrl(), {
+      headers: this.getHeaders(),
+      params: {
+        pageSize: perPage,
+        offset: offset > 0 ? offset.toString() : undefined,
+      },
+    });
+    return response.data.records;
+  }
 
 // Récupérer tous les utilisateurs filtrés par profil
   async findUsersByProfile(profileId: string): Promise<any[]> {

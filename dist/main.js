@@ -49,7 +49,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
     }));
-    const port = process.env.PORT || 3000;
+    const port = process.env.PORT || 3001;
     app.useLogger(logger);
     const publicDir = path.join(__dirname, '..', 'src', 'public');
     app.useStaticAssets(publicDir);

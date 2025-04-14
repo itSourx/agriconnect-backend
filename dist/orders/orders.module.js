@@ -10,13 +10,23 @@ exports.OrdersModule = void 0;
 const common_1 = require("@nestjs/common");
 const orders_service_1 = require("./orders.service");
 const orders_controller_1 = require("./orders.controller");
+const products_module_1 = require("../products/products.module");
+const auth_module_1 = require("../auth/auth.module");
+const jwt_1 = require("@nestjs/jwt");
 let OrdersModule = class OrdersModule {
 };
 exports.OrdersModule = OrdersModule;
 exports.OrdersModule = OrdersModule = __decorate([
     (0, common_1.Module)({
+        imports: [products_module_1.ProductsModule,
+            jwt_1.JwtModule.register({
+                secret: process.env.JWT_SECRET,
+                signOptions: { expiresIn: '60m' },
+            }),
+            (0, common_1.forwardRef)(() => auth_module_1.AuthModule),
+        ],
         providers: [orders_service_1.OrdersService],
-        controllers: [orders_controller_1.OrdersController]
+        controllers: [orders_controller_1.OrdersController],
     })
 ], OrdersModule);
 //# sourceMappingURL=orders.module.js.map

@@ -31,7 +31,7 @@ let ProductsService = class ProductsService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
-    async findAll(page = 1, perPage = 10) {
+    async findAll(page = 1, perPage = 20) {
         const offset = (page - 1) * perPage;
         const response = await axios_1.default.get(this.getUrl(), {
             headers: this.getHeaders(),
