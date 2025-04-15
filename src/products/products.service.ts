@@ -196,10 +196,9 @@ export class ProductsService {
       }
 
       // Vérifier si le stock est suffisant
-      //const currentStock = product.fields.quantity || 0;
       const currentStock = Number(product.fields.quantity || 0); // Convertir en nombre
       if (currentStock < quantity) {
-        throw new Error(`Le produit avec l'ID ${productId} n'a pas suffisamment de stock.`);
+        throw Error(`Le produit avec l'ID ${productId} n'a pas suffisamment de stock.`);
       }
 
       // Calculer le nouveau stock
@@ -217,7 +216,7 @@ export class ProductsService {
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour du stock :', error.response?.data || error.message);
-      throw new Error('Impossible de mettre à jour le stock.');
+      throw error;
     }
   }
 

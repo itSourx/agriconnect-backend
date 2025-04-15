@@ -158,7 +158,7 @@ let ProductsService = class ProductsService {
             }
             const currentStock = Number(product.fields.quantity || 0);
             if (currentStock < quantity) {
-                throw new Error(`Le produit avec l'ID ${productId} n'a pas suffisamment de stock.`);
+                throw Error(`Le produit avec l'ID ${productId} n'a pas suffisamment de stock.`);
             }
             const newStock = currentStock - quantity;
             const response = await axios_1.default.patch(`${this.getUrl()}/${productId}`, { fields: { quantity: newStock } }, { headers: this.getHeaders() });
@@ -167,7 +167,7 @@ let ProductsService = class ProductsService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du stock :', error.response?.data || error.message);
-            throw new Error('Impossible de mettre à jour le stock.');
+            throw error;
         }
     }
 };
