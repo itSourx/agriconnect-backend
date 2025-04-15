@@ -188,7 +188,7 @@ let OrdersService = class OrdersService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du statut de la commande :', error.response?.data || error.message);
-            throw new Error('Impossible de mettre à jour le statut de la commande.');
+            throw error;
         }
     }
 };

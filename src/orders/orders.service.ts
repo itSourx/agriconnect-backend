@@ -234,7 +234,7 @@ export class OrdersService {
       if (products.length !== quantities.length) {
         throw new Error('Les données de la commande sont incohérentes.');
       }
-      
+
       for (let i = 0; i < products.length; i++) {
         const productId = products[i];
         const quantity = quantities[i];
@@ -254,7 +254,8 @@ export class OrdersService {
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut de la commande :', error.response?.data || error.message);
-      throw new Error('Impossible de mettre à jour le statut de la commande.');
+      //throw new Error('Impossible de mettre à jour le statut de la commande.');
+      throw error; // Renvoyer l'erreur telle quelle
     }
   }
 
