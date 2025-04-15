@@ -14,4 +14,5 @@ export declare class ProductsService {
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     findAllByCategory(category: string): Promise<any[]>;
+    updateStock(productId: string, quantity: number): Promise<any>;
 }

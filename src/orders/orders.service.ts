@@ -181,7 +181,68 @@ export class OrdersService {
       if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
         throw new Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
       }
+ // Si le statut devient "confirmed", mettre à jour le stock des produits
+ if (status === 'confirmed') {
+  let products = existingOrder.fields.products;
+  let quantities = existingOrder.fields.Qty;
 
+  console.log('Produits avant normalisation :', products);
+  console.log('Quantités avant normalisation :', quantities);
+
+  // Normaliser products en tableau
+  if (typeof products === 'string') {
+    try {
+      products = JSON.parse(products); // Convertir la chaîne JSON en tableau
+    } catch (error) {
+      // Si JSON.parse échoue, considérer comme une seule valeur
+      products = [products];
+    }
+  } else if (!Array.isArray(products)) {
+    products = [products]; // Convertir en tableau si ce n'est pas déjà un tableau
+  }
+
+  // Normaliser Qty en tableau
+  if (typeof quantities === 'string') {
+    try {
+      quantities = JSON.parse(quantities); // Convertir la chaîne JSON en tableau
+    } catch (error) {
+      // Si JSON.parse échoue, tenter de gérer comme une chaîne séparée par des virgules
+      if (quantities.includes(',')) {
+        quantities = quantities.split(',').map(qty => qty.trim()); // Diviser par virgule et nettoyer
+      } else {
+        quantities = [quantities]; // Considérer comme une seule valeur
+      }
+    }
+  } else if (typeof quantities === 'number') {
+    quantities = [quantities]; // Convertir en tableau si c'est un nombre
+  } else if (!Array.isArray(quantities)) {
+    quantities = [quantities]; // Convertir en tableau si ce n'est pas déjà un tableau
+  }
+
+  // FORCER LA CONVERSION EN TABLEAU POUR QUANTITIES
+  if (!Array.isArray(quantities)) {
+    quantities = [quantities];
+  }
+
+      console.log('Produits après normalisation :', products);
+      console.log('Quantités après normalisation :', quantities);
+
+      // Convertir les quantités en nombres
+      quantities = quantities.map(Number);
+
+      // Vérifier que les produits et les quantités ont la même longueur
+      if (products.length !== quantities.length) {
+        throw new Error('Les données de la commande sont incohérentes.');
+      }
+      
+      for (let i = 0; i < products.length; i++) {
+        const productId = products[i];
+        const quantity = quantities[i];
+
+        // Mettre à jour le stock du produit
+        await this.productsService.updateStock(productId, quantity);
+      }
+    }
       // Envoyer les données mises à jour à Airtable
       const response = await axios.patch(
         `${this.getUrl()}/${id}`,

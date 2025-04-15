@@ -132,6 +132,56 @@ let OrdersService = class OrdersService {
             if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
                 throw new Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
             }
+            if (status === 'confirmed') {
+                let products = existingOrder.fields.products;
+                let quantities = existingOrder.fields.Qty;
+                console.log('Produits avant normalisation :', products);
+                console.log('Quantités avant normalisation :', quantities);
+                if (typeof products === 'string') {
+                    try {
+                        products = JSON.parse(products);
+                    }
+                    catch (error) {
+                        products = [products];
+                    }
+                }
+                else if (!Array.isArray(products)) {
+                    products = [products];
+                }
+                if (typeof quantities === 'string') {
+                    try {
+                        quantities = JSON.parse(quantities);
+                    }
+                    catch (error) {
+                        if (quantities.includes(',')) {
+                            quantities = quantities.split(',').map(qty => qty.trim());
+                        }
+                        else {
+                            quantities = [quantities];
+                        }
+                    }
+                }
+                else if (typeof quantities === 'number') {
+                    quantities = [quantities];
+                }
+                else if (!Array.isArray(quantities)) {
+                    quantities = [quantities];
+                }
+                if (!Array.isArray(quantities)) {
+                    quantities = [quantities];
+                }
+                console.log('Produits après normalisation :', products);
+                console.log('Quantités après normalisation :', quantities);
+                quantities = quantities.map(Number);
+                if (products.length !== quantities.length) {
+                    throw new Error('Les données de la commande sont incohérentes.');
+                }
+                for (let i = 0; i < products.length; i++) {
+                    const productId = products[i];
+                    const quantity = quantities[i];
+                    await this.productsService.updateStock(productId, quantity);
+                }
+            }
             const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: { status } }, { headers: this.getHeaders() });
             console.log('Statut de la commande mis à jour avec succès :', response.data);
             return response.data;
