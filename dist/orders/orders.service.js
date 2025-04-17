@@ -14,10 +14,12 @@ const common_1 = require("@nestjs/common");
 const axios_1 = require("axios");
 const dotenv = require("dotenv");
 const products_service_1 = require("../products/products.service");
+const users_service_1 = require("../users/users.service");
 dotenv.config();
 let OrdersService = class OrdersService {
-    constructor(productsService) {
+    constructor(productsService, usersService) {
         this.productsService = productsService;
+        this.usersService = usersService;
         this.apiKey = process.env.AIRTABLE_API_KEY;
         this.baseId = process.env.AIRTABLE_BASE_ID;
         this.tableName = process.env.AIRTABLE_ORDERS_TABLE;
@@ -80,11 +82,11 @@ let OrdersService = class OrdersService {
         try {
             const existingOrder = await this.findOne(id);
             if (!existingOrder) {
-                throw new Error('Commande introuvable.');
+                throw Error('Commande introuvable.');
             }
             const currentStatus = existingOrder.fields.status;
             if (currentStatus !== 'pending') {
-                throw new Error('Impossible de modifier une commande déjà traitée.');
+                throw Error('Impossible de modifier une commande déjà traitée.');
             }
             const formattedData = {
                 products: data.products.map(product => product.id),
@@ -105,7 +107,7 @@ let OrdersService = class OrdersService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour de la commande :', error.response?.data || error.message);
-            throw new Error('Impossible de mettre à jour la commande.');
+            throw error;
         }
     }
     async delete(id) {
@@ -122,7 +124,7 @@ let OrdersService = class OrdersService {
         try {
             const existingOrder = await this.findOne(id);
             if (!existingOrder) {
-                throw new Error('Commande introuvable.');
+                throw Error('Commande introuvable.');
             }
             const currentStatus = existingOrder.fields.status;
             const allowedStatusTransitions = {
@@ -130,7 +132,7 @@ let OrdersService = class OrdersService {
                 confirmed: ['delivered'],
             };
             if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
-                throw new Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
+                throw Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
             }
             if (status === 'confirmed') {
                 let products = existingOrder.fields.products;
@@ -174,27 +176,70 @@ let OrdersService = class OrdersService {
                 console.log('Quantités après normalisation :', quantities);
                 quantities = quantities.map(Number);
                 if (products.length !== quantities.length) {
-                    throw new Error('Les données de la commande sont incohérentes.');
+                    throw Error('Les données de la commande sont incohérentes.');
                 }
                 for (let i = 0; i < products.length; i++) {
                     const productId = products[i];
                     const quantity = quantities[i];
                     await this.productsService.updateStock(productId, quantity);
                 }
+                const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+                const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, {
+                    fields: {
+                        status,
+                        farmerPayments: JSON.stringify(farmerPayments),
+                    },
+                }, { headers: this.getHeaders() });
+                console.log('Statut de la commande mis à jour avec succès :', response.data);
+                return response.data;
             }
-            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: { status } }, { headers: this.getHeaders() });
-            console.log('Statut de la commande mis à jour avec succès :', response.data);
-            return response.data;
         }
         catch (error) {
-            console.error('Erreur lors de la mise à jour du statut de la commande :', error.response?.data || error.message);
+            console.error('Erreur lors de la mise à jour du statut de la commande :', error.message);
             throw error;
         }
+    }
+    async calculateFarmerPayments(products, quantities) {
+        const farmerPayments = {};
+        for (let i = 0; i < products.length; i++) {
+            const productId = products[i];
+            const quantity = quantities[i];
+            const product = await this.productsService.findOne(productId);
+            if (!product) {
+                throw Error(`Produit avec l'ID ${productId} introuvable.`);
+            }
+            const farmerId = product.fields.farmerId[0];
+            const price = product.fields.price || 0;
+            const farmer = await this.usersService.findOne(farmerId);
+            const name = farmer.fields.name || 'Nom inconnu';
+            const farmerEmail = farmer.fields.email || 'Email inconnu';
+            const totalAmount = price * quantity;
+            if (!farmerPayments[farmerId]) {
+                farmerPayments[farmerId] = {
+                    farmerId,
+                    name: name,
+                    email: farmerEmail,
+                    totalAmount: 0,
+                    totalProducts: 0,
+                    products: [],
+                };
+            }
+            farmerPayments[farmerId].totalAmount += totalAmount;
+            farmerPayments[farmerId].totalProducts += 1;
+            farmerPayments[farmerId].products.push({
+                productId,
+                quantity,
+                price,
+                total: totalAmount,
+            });
+        }
+        return Object.values(farmerPayments);
     }
 };
 exports.OrdersService = OrdersService;
 exports.OrdersService = OrdersService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [products_service_1.ProductsService])
+    __metadata("design:paramtypes", [products_service_1.ProductsService,
+        users_service_1.UsersService])
 ], OrdersService);
 //# sourceMappingURL=orders.service.js.map

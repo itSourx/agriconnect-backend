@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
-import { ProductsService } from '../products/products.service'; // Importez ProductsModule
+import { ProductsService } from '../products/products.service'; // Importez ProductsService
+import { UsersService } from '../users/users.service'; // Importez UsersService
+
 
 
 dotenv.config();
@@ -15,6 +17,8 @@ export class OrdersService {
   constructor(
     //private readonly blacklistService: BlacklistService, // Injectez BlacklistService
     private readonly productsService: ProductsService,   // Injectez ProductsService
+    private readonly usersService: UsersService,   // Injectez UsersService
+
   ) {}
 
   private getHeaders() {
@@ -40,14 +44,6 @@ export class OrdersService {
     });
     return response.data.records;
   }
-
-  // Récupérer une commande par ID
-  /*async findOne(id: string): Promise<any> {
-    const response = await axios.get(`${this.getUrl()}/${id}`, 
-    { headers: this.getHeaders() });
-    return response.data;
-  }*/
-
   // Récupérer une commande par ID
   async findOne(id: string): Promise<any> {
     try {
@@ -106,13 +102,13 @@ export class OrdersService {
 
     // Vérifier si la commande existe
     if (!existingOrder) {
-      throw new Error('Commande introuvable.');
+      throw  Error('Commande introuvable.');
     }
 
     // Vérifier si la commande est encore en statut "pending"
     const currentStatus = existingOrder.fields.status;
     if (currentStatus !== 'pending') {
-      throw new Error('Impossible de modifier une commande déjà traitée.');
+      throw  Error('Impossible de modifier une commande déjà traitée.');
     }
 
     // Formater les données pour Airtable
@@ -145,7 +141,7 @@ export class OrdersService {
     return response.data;
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la commande :', error.response?.data || error.message);
-    throw new Error('Impossible de mettre à jour la commande.');
+    throw  error; //('Impossible de mettre à jour la commande.')
   }
 }
 
@@ -162,101 +158,160 @@ export class OrdersService {
   }
 
    // Mettre à jour le statut d'une commande
-   async updateStatus(id: string, status: string): Promise<any> {
-    try {
-      // Vérifier si la commande existe
-      const existingOrder = await this.findOne(id);
+    async updateStatus(id: string, status: string): Promise<any> {
+      try {
+        // Récupérer la commande existante
+        const existingOrder = await this.findOne(id);
+    
+        if (!existingOrder) {
+          throw Error('Commande introuvable.');
+        }
+    
+        // Vérifier si le statut actuel permet la mise à jour
+        const currentStatus = existingOrder.fields.status;
+        const allowedStatusTransitions = {
+          pending: ['confirmed'], // Une commande "pending" peut passer à "confirmed"
+          confirmed: ['delivered'], // Une commande "confirmed" peut passer à "delivered"
+        };
+    
+        if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
+          throw Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
+        }
+    
+        // Si le statut devient "confirmed", mettre à jour le stock des produits
+        if (status === 'confirmed') {
+          let products = existingOrder.fields.products;
+          let quantities = existingOrder.fields.Qty;
 
-      if (!existingOrder) {
-        throw new Error('Commande introuvable.');
+          console.log('Produits avant normalisation :', products);
+          console.log('Quantités avant normalisation :', quantities);
+    
+          // Normaliser products et quantities en tableaux
+          if (typeof products === 'string') {
+            try {
+              products = JSON.parse(products);
+            } catch (error) {
+              products = [products];
+            }
+          } else if (!Array.isArray(products)) {
+            products = [products];
+          }
+    
+          if (typeof quantities === 'string') {
+            try {
+              quantities = JSON.parse(quantities); // Convertir la chaîne JSON en tableau
+            } catch (error) {
+              // Si JSON.parse échoue, tenter de gérer comme une chaîne séparée par des virgules
+              if (quantities.includes(',')) {
+                quantities = quantities.split(',').map(qty => qty.trim()); // Diviser par virgule et nettoyer
+              } else {
+                quantities = [quantities]; // Considérer comme une seule valeur
+              }
+            }
+          } else if (typeof quantities === 'number') {
+            quantities = [quantities]; // Convertir en tableau si c'est un nombre
+          } else if (!Array.isArray(quantities)) {
+            quantities = [quantities]; // Convertir en tableau si ce n'est pas déjà un tableau
+          }
+        
+          // FORCER LA CONVERSION EN TABLEAU POUR QUANTITIES
+          if (!Array.isArray(quantities)) {
+            quantities = [quantities];
+          }
+
+          console.log('Produits après normalisation :', products);
+          console.log('Quantités après normalisation :', quantities);
+        
+          // Convertir les quantités en nombres
+          quantities = quantities.map(Number);
+    
+          // Vérifier que les produits et les quantités ont la même longueur
+          if (products.length !== quantities.length) {
+            throw Error('Les données de la commande sont incohérentes.');
+          }
+    
+          // Mettre à jour le stock des produits
+          for (let i = 0; i < products.length; i++) {
+            const productId = products[i];
+            const quantity = quantities[i];
+            await this.productsService.updateStock(productId, quantity);
+          }
+    
+          // Calculer les paiements par agriculteur
+          const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+    
+          // Envoyer les données mises à jour à Airtable
+          const response = await axios.patch(
+            `${this.getUrl()}/${id}`,
+            {
+              fields: {
+                status,
+                farmerPayments: JSON.stringify(farmerPayments), // Stocker les paiements sous forme de chaîne JSON
+              },
+            },
+            { headers: this.getHeaders() }
+          );
+    
+          console.log('Statut de la commande mis à jour avec succès :', response.data);
+          return response.data;
+        }
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du statut de la commande :', error.message);
+        throw error; // Propager l'erreur telle quelle
       }
+    }
+  
+// Ajouter une méthode pour regrouper les produits par agriculteur
+async calculateFarmerPayments(products: string[], quantities: number[]): Promise<any> {
+  const farmerPayments = {};
 
-      // Vérifier si le statut actuel permet la mise à jour
-      const currentStatus = existingOrder.fields.status;
-      const allowedStatusTransitions = {
-        pending: ['confirmed'], // Une commande "pending" peut passer à "confirmed"
-        confirmed: ['delivered'], // Une commande "confirmed" peut passer à "delivered"
+  for (let i = 0; i < products.length; i++) {
+    const productId = products[i];
+    const quantity = quantities[i];
+
+    // Récupérer les détails du produit depuis Airtable
+    const product = await this.productsService.findOne(productId);
+
+    if (!product) {
+      throw Error (`Produit avec l'ID ${productId} introuvable.`);
+    }
+
+    const farmerId = product.fields.farmerId[0]; // ID de l'agriculteur (relation)
+    const price = product.fields.price || 0; // Prix unitaire
+
+    
+    // Récupérer les détails de l'agriculteur
+    const farmer = await this.usersService.findOne(farmerId);
+    const name = farmer.fields.name || 'Nom inconnu';
+    const farmerEmail = farmer.fields.email || 'Email inconnu';
+
+
+    // Calculer le montant total pour cet agriculteur
+    const totalAmount = price * quantity;
+
+    // Ajouter ou mettre à jour les paiements pour cet agriculteur
+    if (!farmerPayments[farmerId]) {
+      farmerPayments[farmerId] = {
+        farmerId,
+        name: name, // Nom de l'agriculteur
+        email: farmerEmail, // Email de l'agriculteur
+        totalAmount: 0,
+        totalProducts: 0, // Nouveau paramètre : nombre de produits distincts
+        products: [],
       };
-
-      if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
-        throw new Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
-      }
- // Si le statut devient "confirmed", mettre à jour le stock des produits
- if (status === 'confirmed') {
-  let products = existingOrder.fields.products;
-  let quantities = existingOrder.fields.Qty;
-
-  console.log('Produits avant normalisation :', products);
-  console.log('Quantités avant normalisation :', quantities);
-
-  // Normaliser products en tableau
-  if (typeof products === 'string') {
-    try {
-      products = JSON.parse(products); // Convertir la chaîne JSON en tableau
-    } catch (error) {
-      // Si JSON.parse échoue, considérer comme une seule valeur
-      products = [products];
     }
-  } else if (!Array.isArray(products)) {
-    products = [products]; // Convertir en tableau si ce n'est pas déjà un tableau
+
+    farmerPayments[farmerId].totalAmount += totalAmount;
+    farmerPayments[farmerId].totalProducts += 1; // Incrémenter le nombre de produits distincts
+    farmerPayments[farmerId].products.push({
+      productId,
+      quantity,
+      price,
+      total: totalAmount,
+    });
   }
 
-  // Normaliser Qty en tableau
-  if (typeof quantities === 'string') {
-    try {
-      quantities = JSON.parse(quantities); // Convertir la chaîne JSON en tableau
-    } catch (error) {
-      // Si JSON.parse échoue, tenter de gérer comme une chaîne séparée par des virgules
-      if (quantities.includes(',')) {
-        quantities = quantities.split(',').map(qty => qty.trim()); // Diviser par virgule et nettoyer
-      } else {
-        quantities = [quantities]; // Considérer comme une seule valeur
-      }
-    }
-  } else if (typeof quantities === 'number') {
-    quantities = [quantities]; // Convertir en tableau si c'est un nombre
-  } else if (!Array.isArray(quantities)) {
-    quantities = [quantities]; // Convertir en tableau si ce n'est pas déjà un tableau
-  }
-
-  // FORCER LA CONVERSION EN TABLEAU POUR QUANTITIES
-  if (!Array.isArray(quantities)) {
-    quantities = [quantities];
-  }
-
-      console.log('Produits après normalisation :', products);
-      console.log('Quantités après normalisation :', quantities);
-
-      // Convertir les quantités en nombres
-      quantities = quantities.map(Number);
-
-      // Vérifier que les produits et les quantités ont la même longueur
-      if (products.length !== quantities.length) {
-        throw new Error('Les données de la commande sont incohérentes.');
-      }
-
-      for (let i = 0; i < products.length; i++) {
-        const productId = products[i];
-        const quantity = quantities[i];
-
-        // Mettre à jour le stock du produit
-        await this.productsService.updateStock(productId, quantity);
-      }
-    }
-      // Envoyer les données mises à jour à Airtable
-      const response = await axios.patch(
-        `${this.getUrl()}/${id}`,
-        { fields: { status } },
-        { headers: this.getHeaders() }
-      );
-
-      console.log('Statut de la commande mis à jour avec succès :', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut de la commande :', error.response?.data || error.message);
-      //throw new Error('Impossible de mettre à jour le statut de la commande.');
-      throw error; // Renvoyer l'erreur telle quelle
-    }
-  }
+  return Object.values(farmerPayments); // Convertir en tableau
+}
 
 }
