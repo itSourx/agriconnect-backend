@@ -75,4 +75,20 @@ export class OrdersController {
       throw new Error(error.message);
     }
   }
+  @Get('byfarmer/:farmerId')
+  @UseGuards(AuthGuard)
+  async getOrdersByFarmer(@Param('farmerId') farmerId: string, @Request() req) {
+    try {
+      // Récupérer les commandes pour l'agriculteur
+      const farmerOrders = await this.ordersService.getOrdersByFarmer(farmerId);
+
+      return {
+        //success: true,
+        data: farmerOrders
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.message);
+      throw new Error('Impossible de récupérer les commandes pour cet agriculteur.');
+    }
+  }
 }

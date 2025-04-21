@@ -3,8 +3,7 @@ import axios from 'axios';
 import * as dotenv from 'dotenv';
 import { ProductsService } from '../products/products.service'; // Importez ProductsService
 import { UsersService } from '../users/users.service'; // Importez UsersService
-
-
+import { format } from 'date-fns'; // Importation correcte de format
 
 dotenv.config();
 
@@ -78,11 +77,19 @@ export class OrdersService {
           formattedData.totalPrice = totalPrice;
       
           console.log('Données formatées pour Airtable :', formattedData);
-      
+
+          let products = formattedData.products;
+          let quantities = formattedData.Qty;
+
+          // Calculer les paiements par agriculteur
+          const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+
           // Envoyer les données à Airtable
           const response = await axios.post(
             this.getUrl(),
-            { records: [{ fields: formattedData }] },
+            { records: [{ fields: formattedData
+              //farmerPayments: JSON.stringify(farmerPayments) // Stocker les paiements sous forme de chaîne JSON
+             }] },
             { headers: this.getHeaders() }
           );
       
@@ -90,7 +97,7 @@ export class OrdersService {
           return response.data.records[0];
         } catch (error) {
           console.error('Erreur lors de la création de la commande :', error.response?.data || error.message);
-          throw new Error('Impossible de créer la commande.');
+          throw error; //('Impossible de créer la commande.');
         }
       }
 
@@ -278,6 +285,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
 
     const farmerId = product.fields.farmerId[0]; // ID de l'agriculteur (relation)
     const price = product.fields.price || 0; // Prix unitaire
+    const lib = product.fields.Name; // Libellé du produit
 
     
     // Récupérer les détails de l'agriculteur
@@ -305,6 +313,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     farmerPayments[farmerId].totalProducts += 1; // Incrémenter le nombre de produits distincts
     farmerPayments[farmerId].products.push({
       productId,
+      lib,
       quantity,
       price,
       total: totalAmount,
@@ -314,4 +323,66 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
   return Object.values(farmerPayments); // Convertir en tableau
 }
 
+// Récupérer les commandes pour un agriculteur spécifique
+async getOrdersByFarmer(farmerId: string): Promise<any> {
+  try {
+    // Récupérer toutes les commandes depuis Airtable
+    const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
+    const orders = response.data.records;
+
+    // Déclarer explicitement le type du tableau farmerOrders
+    type FarmerOrder = {
+      orderId: string;
+      status: string;
+      totalAmount: number;
+      totalProducts: number;
+      date: string;
+      products: any[];
+    };
+
+    const farmerOrders: FarmerOrder[] = [];
+
+    for (const order of orders) {
+      const orderId = order.id;
+      const fields = order.fields;
+
+      // Vérifier si le champ farmerPayments existe et contient des données
+      if (!fields.farmerPayments) continue;
+
+      let farmerPayments;
+      try {
+        farmerPayments = JSON.parse(fields.farmerPayments); // Parser les paiements en JSON
+      } catch (error) {
+        console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
+        continue;
+      }
+
+      // Trouver les paiements spécifiques à cet agriculteur
+      const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
+
+
+
+      if (farmerPayment) {
+            // Formatter la date
+            const rawDate = fields.createdAt; // Supposons que le champ "date" existe dans Airtable
+            const formattedDate = rawDate ? format(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+
+        // Ajouter les détails de la commande pour cet agriculteur
+        farmerOrders.push({
+          orderId,
+          status: fields.status,
+          date: formattedDate,
+          totalAmount: farmerPayment.totalAmount,
+          totalProducts: farmerPayment.totalProducts,
+          products: farmerPayment.products,
+        });
+      }
+    }
+
+    return farmerOrders;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
+    throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
+  }
+}
 }

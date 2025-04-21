@@ -15,6 +15,7 @@ const axios_1 = require("axios");
 const dotenv = require("dotenv");
 const products_service_1 = require("../products/products.service");
 const users_service_1 = require("../users/users.service");
+const date_fns_1 = require("date-fns");
 dotenv.config();
 let OrdersService = class OrdersService {
     constructor(productsService, usersService) {
@@ -69,13 +70,17 @@ let OrdersService = class OrdersService {
             }
             formattedData.totalPrice = totalPrice;
             console.log('Données formatées pour Airtable :', formattedData);
-            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
+            let products = formattedData.products;
+            let quantities = formattedData.Qty;
+            const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData
+                    }] }, { headers: this.getHeaders() });
             console.log('Commande créée avec succès :', response.data);
             return response.data.records[0];
         }
         catch (error) {
             console.error('Erreur lors de la création de la commande :', error.response?.data || error.message);
-            throw new Error('Impossible de créer la commande.');
+            throw error;
         }
     }
     async update(id, data) {
@@ -210,6 +215,7 @@ let OrdersService = class OrdersService {
             }
             const farmerId = product.fields.farmerId[0];
             const price = product.fields.price || 0;
+            const lib = product.fields.Name;
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
@@ -228,12 +234,52 @@ let OrdersService = class OrdersService {
             farmerPayments[farmerId].totalProducts += 1;
             farmerPayments[farmerId].products.push({
                 productId,
+                lib,
                 quantity,
                 price,
                 total: totalAmount,
             });
         }
         return Object.values(farmerPayments);
+    }
+    async getOrdersByFarmer(farmerId) {
+        try {
+            const response = await axios_1.default.get(this.getUrl(), { headers: this.getHeaders() });
+            const orders = response.data.records;
+            const farmerOrders = [];
+            for (const order of orders) {
+                const orderId = order.id;
+                const fields = order.fields;
+                if (!fields.farmerPayments)
+                    continue;
+                let farmerPayments;
+                try {
+                    farmerPayments = JSON.parse(fields.farmerPayments);
+                }
+                catch (error) {
+                    console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
+                    continue;
+                }
+                const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
+                if (farmerPayment) {
+                    const rawDate = fields.createdAt;
+                    const formattedDate = rawDate ? (0, date_fns_1.format)(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+                    farmerOrders.push({
+                        orderId,
+                        status: fields.status,
+                        date: formattedDate,
+                        totalAmount: farmerPayment.totalAmount,
+                        totalProducts: farmerPayment.totalProducts,
+                        products: farmerPayment.products,
+                    });
+                }
+            }
+            return farmerOrders;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
+            throw error;
+        }
     }
 };
 exports.OrdersService = OrdersService;

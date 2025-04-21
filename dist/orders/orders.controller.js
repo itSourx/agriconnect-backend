@@ -50,6 +50,18 @@ let OrdersController = class OrdersController {
             throw new Error(error.message);
         }
     }
+    async getOrdersByFarmer(farmerId, req) {
+        try {
+            const farmerOrders = await this.ordersService.getOrdersByFarmer(farmerId);
+            return {
+                data: farmerOrders
+            };
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.message);
+            throw new Error('Impossible de récupérer les commandes pour cet agriculteur.');
+        }
+    }
 };
 exports.OrdersController = OrdersController;
 __decorate([
@@ -101,6 +113,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "updateStatus", null);
+__decorate([
+    (0, common_1.Get)('byfarmer/:farmerId'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Param)('farmerId')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getOrdersByFarmer", null);
 exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
     __metadata("design:paramtypes", [orders_service_1.OrdersService])

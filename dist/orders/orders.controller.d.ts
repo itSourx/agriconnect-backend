@@ -9,4 +9,7 @@ export declare class OrdersController {
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     updateStatus(orderId: string, status: string, req: any): Promise<any>;
+    getOrdersByFarmer(farmerId: string, req: any): Promise<{
+        data: any;
+    }>;
 }
