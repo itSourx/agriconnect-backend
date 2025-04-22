@@ -62,6 +62,7 @@ let OrdersService = class OrdersService {
                 products: data.products.map(product => product.id),
                 totalPrice: 0,
                 Qty: data.products.map(product => product.quantity).join(' , '),
+                farmerPayments: '',
             };
             let totalPrice = 0;
             for (const product of data.products) {
@@ -69,12 +70,12 @@ let OrdersService = class OrdersService {
                 totalPrice += productRecord.fields.price * product.quantity;
             }
             formattedData.totalPrice = totalPrice;
+            const productIds = data.products.map(product => product.id);
+            const quantities = data.products.map(product => product.quantity);
+            const farmerPayments = await this.calculateFarmerPayments(productIds, quantities);
+            formattedData.farmerPayments = JSON.stringify(farmerPayments);
             console.log('Données formatées pour Airtable :', formattedData);
-            let products = formattedData.products;
-            let quantities = formattedData.Qty;
-            const farmerPayments = await this.calculateFarmerPayments(products, quantities);
-            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData
-                    }] }, { headers: this.getHeaders() });
+            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
             console.log('Commande créée avec succès :', response.data);
             return response.data.records[0];
         }
@@ -135,10 +136,12 @@ let OrdersService = class OrdersService {
             const allowedStatusTransitions = {
                 pending: ['confirmed'],
                 confirmed: ['delivered'],
+                delivered: ['completed'],
             };
             if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
                 throw Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
             }
+            console.log(`Transition de statut autorisée : "${currentStatus}" → "${status}"`);
             if (status === 'confirmed') {
                 let products = existingOrder.fields.products;
                 let quantities = existingOrder.fields.Qty;
@@ -193,6 +196,15 @@ let OrdersService = class OrdersService {
                     fields: {
                         status,
                         farmerPayments: JSON.stringify(farmerPayments),
+                    },
+                }, { headers: this.getHeaders() });
+                console.log('Statut de la commande mis à jour avec succès :', response.data);
+                return response.data;
+            }
+            else {
+                const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, {
+                    fields: {
+                        status,
                     },
                 }, { headers: this.getHeaders() });
                 console.log('Statut de la commande mis à jour avec succès :', response.data);
@@ -264,10 +276,13 @@ let OrdersService = class OrdersService {
                 if (farmerPayment) {
                     const rawDate = fields.createdAt;
                     const formattedDate = rawDate ? (0, date_fns_1.format)(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+                    const rawStatusDate = fields.statusDate;
+                    const formattedStatusDate = rawStatusDate ? (0, date_fns_1.format)(new Date(rawStatusDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
                     farmerOrders.push({
                         orderId,
                         status: fields.status,
-                        date: formattedDate,
+                        createdDate: formattedDate,
+                        statusDate: formattedStatusDate,
                         totalAmount: farmerPayment.totalAmount,
                         totalProducts: farmerPayment.totalProducts,
                         products: farmerPayment.products,

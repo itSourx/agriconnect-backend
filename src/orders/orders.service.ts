@@ -6,7 +6,10 @@ import { UsersService } from '../users/users.service'; // Importez UsersService
 import { format } from 'date-fns'; // Importation correcte de format
 
 dotenv.config();
-
+interface UpdatedFields {
+  status: string;
+  farmerPayments?: string; // Champ facultatif pour farmerPayments
+}
 @Injectable()
 export class OrdersService {
   private readonly apiKey = process.env.AIRTABLE_API_KEY;
@@ -63,11 +66,10 @@ export class OrdersService {
             products: data.products.map(product => product.id), // Extraire uniquement les IDs des produits
             //status: data.status,
             totalPrice: 0, // Initialiser à 0, puis calculer le prix total
-            //Qty: data.products.map(product => product.quantity), // Quantités des produits
             Qty: data.products.map(product => product.quantity).join(' , '), // Convertir le tableau en chaîne
-
+            farmerPayments: '', // Ajouter explicitement la propriété farmerPayments
           };
-      
+     
           // Calculer le prix total
           let totalPrice = 0;
           for (const product of data.products) {
@@ -75,21 +77,22 @@ export class OrdersService {
             totalPrice += productRecord.fields.price * product.quantity;
           }
           formattedData.totalPrice = totalPrice;
-      
-          console.log('Données formatées pour Airtable :', formattedData);
 
-          let products = formattedData.products;
-          let quantities = formattedData.Qty;
+          const productIds = data.products.map(product => product.id);
+          const quantities = data.products.map(product => product.quantity);
 
           // Calculer les paiements par agriculteur
-          const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+          const farmerPayments = await this.calculateFarmerPayments(productIds, quantities);
+
+        // Ajouter les paiements par agriculteur aux données
+         formattedData.farmerPayments = JSON.stringify(farmerPayments); // Stocker sous forme de chaîne JSON
+      
+          console.log('Données formatées pour Airtable :', formattedData);
 
           // Envoyer les données à Airtable
           const response = await axios.post(
             this.getUrl(),
-            { records: [{ fields: formattedData
-              //farmerPayments: JSON.stringify(farmerPayments) // Stocker les paiements sous forme de chaîne JSON
-             }] },
+            { records: [{ fields: formattedData }] },
             { headers: this.getHeaders() }
           );
       
@@ -179,14 +182,17 @@ export class OrdersService {
         const allowedStatusTransitions = {
           pending: ['confirmed'], // Une commande "pending" peut passer à "confirmed"
           confirmed: ['delivered'], // Une commande "confirmed" peut passer à "delivered"
+          delivered: ['completed'], // Une commande "delivered" peut passer à "completed"
+
         };
     
         if (!allowedStatusTransitions[currentStatus]?.includes(status)) {
           throw Error(`Impossible de passer la commande de "${currentStatus}" à "${status}".`);
         }
-    
+        console.log(`Transition de statut autorisée : "${currentStatus}" → "${status}"`);
+
         // Si le statut devient "confirmed", mettre à jour le stock des produits
-        if (status === 'confirmed') {
+        if (status === 'confirmed') {  
           let products = existingOrder.fields.products;
           let quantities = existingOrder.fields.Qty;
 
@@ -243,10 +249,10 @@ export class OrdersService {
             const quantity = quantities[i];
             await this.productsService.updateStock(productId, quantity);
           }
-    
-          // Calculer les paiements par agriculteur
-          const farmerPayments = await this.calculateFarmerPayments(products, quantities);
-    
+
+      // Calculer les paiements par agriculteur
+      const farmerPayments = await this.calculateFarmerPayments(products, quantities);
+
           // Envoyer les données mises à jour à Airtable
           const response = await axios.patch(
             `${this.getUrl()}/${id}`,
@@ -259,6 +265,20 @@ export class OrdersService {
             { headers: this.getHeaders() }
           );
     
+          console.log('Statut de la commande mis à jour avec succès :', response.data);
+          return response.data;
+        }else {
+          // Mise à jour générique du statut pour tous les autres cas valides (ex: "delivered")
+          const response = await axios.patch(
+            `${this.getUrl()}/${id}`,
+            {
+              fields: {
+                status,
+              },
+            },
+            { headers: this.getHeaders() }
+          );
+
           console.log('Statut de la commande mis à jour avec succès :', response.data);
           return response.data;
         }
@@ -286,6 +306,8 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const farmerId = product.fields.farmerId[0]; // ID de l'agriculteur (relation)
     const price = product.fields.price || 0; // Prix unitaire
     const lib = product.fields.Name; // Libellé du produit
+    //const img = product.fields.Photo; // Image du produit
+
 
     
     // Récupérer les détails de l'agriculteur
@@ -313,6 +335,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     farmerPayments[farmerId].totalProducts += 1; // Incrémenter le nombre de produits distincts
     farmerPayments[farmerId].products.push({
       productId,
+      //img,
       lib,
       quantity,
       price,
@@ -336,7 +359,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       status: string;
       totalAmount: number;
       totalProducts: number;
-      date: string;
+      createdDate: string;
+      statusDate: string;
       products: any[];
     };
 
@@ -360,18 +384,20 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
 
-
-
       if (farmerPayment) {
             // Formatter la date
             const rawDate = fields.createdAt; // Supposons que le champ "date" existe dans Airtable
             const formattedDate = rawDate ? format(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
 
+            const rawStatusDate = fields.statusDate; // Supposons que le champ "date" existe dans Airtable
+            const formattedStatusDate = rawStatusDate ? format(new Date(rawStatusDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+
         // Ajouter les détails de la commande pour cet agriculteur
         farmerOrders.push({
           orderId,
           status: fields.status,
-          date: formattedDate,
+          createdDate: formattedDate,
+          statusDate: formattedStatusDate,
           totalAmount: farmerPayment.totalAmount,
           totalProducts: farmerPayment.totalProducts,
           products: farmerPayment.products,
