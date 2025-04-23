@@ -133,7 +133,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getOrdersByFarmer", null);
 __decorate([
-    (0, common_1.Get)('payments/:id'),
+    (0, common_1.Get)('details/:id'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),

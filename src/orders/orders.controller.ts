@@ -92,7 +92,7 @@ export class OrdersController {
     }
   }
 
-  @Get('payments/:id')
+  @Get('details/:id')
   @UseGuards(AuthGuard)
   async getOrderPayments(@Param('id') orderId: string) {
     try {
