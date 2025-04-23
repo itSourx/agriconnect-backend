@@ -411,4 +411,36 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
     throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
   }
 }
+
+async getOrderPayments(orderId: string): Promise<any> {
+  try {
+    // Récupérer la commande existante
+    const existingOrder = await this.findOne(orderId);
+
+    if (!existingOrder) {
+      throw new Error('Commande introuvable.');
+    }
+
+    // Vérifier si le champ farmerPayments existe
+    const farmerPayments = existingOrder.fields.farmerPayments;
+
+    if (!farmerPayments) {
+      throw new Error('Aucun détail de paiement trouvé pour cette commande.');
+    }
+
+    // Parser le champ farmerPayments (stocké sous forme de chaîne JSON)
+    let parsedPayments;
+    try {
+      parsedPayments = JSON.parse(farmerPayments);
+    } catch (error) {
+      throw new Error('Le format des détails de paiement est incorrect.');
+    }
+
+    // Retourner les détails des paiements
+    return parsedPayments;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des détails de paiement :', error.message);
+    throw error; // Propager l'erreur telle quelle
+  }
+}
 }

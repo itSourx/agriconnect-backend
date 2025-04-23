@@ -62,6 +62,16 @@ let OrdersController = class OrdersController {
             throw new Error('Impossible de récupérer les commandes pour cet agriculteur.');
         }
     }
+    async getOrderPayments(orderId) {
+        try {
+            const payments = await this.ordersService.getOrderPayments(orderId);
+            return payments;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des détails de paiement :', error.message);
+            throw error;
+        }
+    }
 };
 exports.OrdersController = OrdersController;
 __decorate([
@@ -122,6 +132,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getOrdersByFarmer", null);
+__decorate([
+    (0, common_1.Get)('payments/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getOrderPayments", null);
 exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
     __metadata("design:paramtypes", [orders_service_1.OrdersService])

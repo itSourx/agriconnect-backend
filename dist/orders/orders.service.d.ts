@@ -17,4 +17,5 @@ export declare class OrdersService {
     updateStatus(id: string, status: string): Promise<any>;
     calculateFarmerPayments(products: string[], quantities: number[]): Promise<any>;
     getOrdersByFarmer(farmerId: string): Promise<any>;
+    getOrderPayments(orderId: string): Promise<any>;
 }

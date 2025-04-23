@@ -296,6 +296,30 @@ let OrdersService = class OrdersService {
             throw error;
         }
     }
+    async getOrderPayments(orderId) {
+        try {
+            const existingOrder = await this.findOne(orderId);
+            if (!existingOrder) {
+                throw new Error('Commande introuvable.');
+            }
+            const farmerPayments = existingOrder.fields.farmerPayments;
+            if (!farmerPayments) {
+                throw new Error('Aucun détail de paiement trouvé pour cette commande.');
+            }
+            let parsedPayments;
+            try {
+                parsedPayments = JSON.parse(farmerPayments);
+            }
+            catch (error) {
+                throw new Error('Le format des détails de paiement est incorrect.');
+            }
+            return parsedPayments;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des détails de paiement :', error.message);
+            throw error;
+        }
+    }
 };
 exports.OrdersService = OrdersService;
 exports.OrdersService = OrdersService = __decorate([

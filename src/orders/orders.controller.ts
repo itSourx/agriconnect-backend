@@ -91,4 +91,17 @@ export class OrdersController {
       throw new Error('Impossible de récupérer les commandes pour cet agriculteur.');
     }
   }
+
+  @Get('payments/:id')
+  @UseGuards(AuthGuard)
+  async getOrderPayments(@Param('id') orderId: string) {
+    try {
+      // Appeler le service pour récupérer les détails des paiements
+      const payments = await this.ordersService.getOrderPayments(orderId);
+      return payments;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des détails de paiement :', error.message);
+      throw error; // Propager l'erreur telle quelle
+    }
+  }
 }

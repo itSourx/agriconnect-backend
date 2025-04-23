@@ -12,4 +12,5 @@ export declare class OrdersController {
     getOrdersByFarmer(farmerId: string, req: any): Promise<{
         data: any;
     }>;
+    getOrderPayments(orderId: string): Promise<any>;
 }
