@@ -1,11 +1,26 @@
-import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, Res} from '@nestjs/common';
+import { Response } from 'express'; // Importez également le type `Response` pour TypeScript
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './create-order.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import axios from 'axios';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  // Méthode utilitaire pour obtenir l'URL de base d'Airtable
+  private getUrl(): string {
+    return `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Orders`;
+  }
+
+  // Méthode utilitaire pour obtenir les en-têtes d'authentification
+  private getHeaders(): any {
+    return {
+      Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    };
+  }
 
   @Get()
   async findAll() {
@@ -104,4 +119,105 @@ export class OrdersController {
       throw error; // Propager l'erreur telle quelle
     }
   }
+  @Post('invoice/:id')
+  @UseGuards(AuthGuard)
+  async generateAndStoreInvoice(@Param('id') orderId: string) {
+    try {
+      // Générer la facture PDF en base64
+      const pdfBuffer = await this.ordersService.generateInvoice(orderId);
+      const base64Content = pdfBuffer.toString('base64'); // Convertir en base64
+  
+      // Nom du fichier
+      const fileName = `invoice_${orderId}.pdf`;
+  
+      // Vérifier la taille du fichier
+      const fileSizeInBytes = Buffer.from(base64Content, 'base64').length;
+      const fileSizeInMB = fileSizeInBytes / (1024 * 1024); // Convertir en Mo
+  
+      if (fileSizeInMB > 5) {
+        throw new Error('Le fichier PDF est trop volumineux (limite : 5 Mo).');
+      }
+  
+      // Envoyer les données à Airtable
+      const response = await axios.patch(
+        `${this.getUrl()}/${orderId}`,
+        {
+          fields: {
+            invoice: [
+              {
+                url: `data:application/pdf;base64,${base64Content}`, // URL avec contenu base64
+                filename: fileName, // Nom du fichier
+              },
+            ],
+          },
+        },
+        { headers: this.getHeaders() }
+      );
+  
+      console.log('Facture enregistrée avec succès :', response.data);
+  
+      // Construire la réponse à renvoyer au client
+      return {
+        message: 'Facture générée et enregistrée avec succès.',
+        data: {
+          orderId,
+          invoiceUrl: response.data.fields.invoice[0].url, // URL du fichier PDF dans Airtable
+        },
+      };
+    } catch (error) {
+      console.error('Erreur lors de la génération et du stockage de la facture :', error.response?.data || error.message);
+      throw Error;//(`Erreur lors de la génération de la facture : ${error.message}`);
+    }
+  }
+
+@Get('preview-invoice/:id')
+async previewInvoice(@Param('id') orderId: string, @Res() res: Response) {
+  try {
+    // Générer la facture PDF
+    const pdfBuffer = await this.ordersService.generateInvoice(orderId);
+
+    // Envoyer le fichier au navigateur
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Erreur lors de la prévisualisation de la facture :', error.message);
+    res.status(500).send('Erreur lors de la génération de la facture.');
+  }
+}
+
+@Post('send-invoice/:id')
+@UseGuards(AuthGuard)
+async sendInvoice(@Param('id') orderId: string) {
+  try {
+    // Récupérer la commande existante depuis Airtable
+    const existingOrder = await this.ordersService.findOne(orderId);
+
+    if (!existingOrder) {
+      throw new Error('Commande introuvable.');
+    }
+
+    const orderDetails = existingOrder.fields;
+
+    // Extraire l'e-mail de l'acheteur depuis la commande
+    const buyerEmail = orderDetails.buyerEmail;
+
+    if (!buyerEmail) {
+      throw new Error('Aucun e-mail trouvé pour cette commande.');
+    }
+
+    // Envoyer la facture par e-mail
+    await this.ordersService.sendInvoiceByEmail(orderId, buyerEmail);
+
+    return {
+      message: 'Facture envoyée avec succès.',
+      data: {
+        orderId,
+        email: buyerEmail,
+      },
+    };
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de la facture :', error.message);
+    throw Error; //(`Erreur lors de l'envoi de la facture : ${error.message}`);
+  }
+}
 }

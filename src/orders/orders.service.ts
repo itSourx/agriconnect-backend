@@ -4,6 +4,13 @@ import * as dotenv from 'dotenv';
 import { ProductsService } from '../products/products.service'; // Importez ProductsService
 import { UsersService } from '../users/users.service'; // Importez UsersService
 import { format } from 'date-fns'; // Importation correcte de format
+import * as fs from 'fs';
+import * as path from 'path';
+import * as pdfMake from 'pdfmake/build/pdfmake';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+//import { TDocumentDefinitions, Content } from 'pdfmake/build/interfaces';
+import * as nodemailer from 'nodemailer';
+
 
 dotenv.config();
 interface UpdatedFields {
@@ -443,4 +450,208 @@ async getOrderPayments(orderId: string): Promise<any> {
     throw error; // Propager l'erreur telle quelle
   }
 }
+  // Charger les polices nécessaires pour pdfmake
+  private loadPdfFonts() {
+    // Assigner explicitement les polices à pdfMake
+    (pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+  }
+
+  // Méthode pour générer la facture PDF.
+  async generateInvoice(orderId: string): Promise<Buffer> {
+    this.loadPdfFonts();
+  
+    try {
+      // Récupérer la commande existante
+      const existingOrder = await this.findOne(orderId);
+  
+      if (!existingOrder) {
+        throw new Error('Commande introuvable.');
+      }
+  
+      const orderDetails = existingOrder.fields;
+  
+      // Extraire les informations nécessaires
+      //const orderDate = orderDetails.createdAt || 'Date inconnue';
+      const buyerName = orderDetails.buyerName || 'Client inconnu';
+      const totalPrice = orderDetails.totalPrice || 0;
+      const totalProducts = orderDetails.Nbr || 0;
+
+
+      const products = orderDetails.products || [];
+      const quantities = orderDetails.Qty || [];
+  
+      console.log('Produits bruts :', products);
+      console.log('Quantités brutes :', quantities);
+  
+      // Normaliser les produits et quantités
+      const normalizedProducts = Array.isArray(products) ? products : [products];
+      let normalizedQuantities = Array.isArray(quantities)
+        ? quantities.map(Number)
+        : [Number(quantities)];
+  
+      // Si c'est une chaîne séparée par des virgules, diviser et nettoyer
+      if (typeof quantities === 'string') {
+        normalizedQuantities = quantities.split(',').map(qty => {
+          const parsedQty = Number(qty.trim());
+          if (isNaN(parsedQty)) {
+            console.error(`Quantité invalide détectée : "${qty}"`);
+            return 0; // Remplacer par une valeur par défaut
+          }
+          return parsedQty;
+        });
+      }
+  
+      console.log('Produits normalisés :', normalizedProducts);
+      console.log('Quantités normalisées :', normalizedQuantities);
+  
+      // Vérifier que les produits et les quantités ont la même longueur
+      if (normalizedProducts.length !== normalizedQuantities.length) {
+        throw new Error('Les données de la commande sont incohérentes.');
+      }
+            // Formatter la date
+           //onst rawDate = fields.createdAt; // Supposons que le champ "date" existe dans Airtable 
+            const rawDate =orderDetails.createdAt;
+            const formattedDate = rawDate ? format(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+            
+      // Construire le contenu de la facture
+      const content: any[] = [];
+  
+      // En-tête de la facture
+      content.push({ text: 'FACTURE', style: 'header' });
+      content.push({ text: `Commande #${orderId}`, style: 'subheader' });
+      content.push({ text: `Acheteur : ${buyerName}`, margin: [0, 0, 0, 5] });
+      content.push({ text: `Products : ${totalProducts}`, margin: [0, 0, 0, 5] });
+      content.push({ text: `total Price : ${totalPrice} FCFA`, margin: [0, 0, 0, 5] });
+ //   content.push({ text: `Date : ${orderDate}`, margin: [0, 0, 0, 15] });
+      content.push({ text: `Date : ${formattedDate}`, margin: [0, 0, 0, 15] });
+
+
+
+  
+      // Détails des produits
+      content.push({ text: 'Détails des produits', style: 'sectionHeader' });
+  
+      const bodyRows: Array<[string, number, string, string]> = [];
+      for (let i = 0; i < normalizedProducts.length; i++) {
+        const productId = normalizedProducts[i];
+        const product = await this.productsService.findOne(productId);
+        const productName = product?.fields.Name || 'Produit inconnu';
+        const price = product?.fields.price || 0;
+        const quantity = normalizedQuantities[i];
+  
+        console.log(`Produit ID: ${productId}, Nom: ${productName}, Prix: ${price}, Quantité: ${quantity}`);
+  
+        if (!product) {
+          console.warn(`Produit avec l'ID ${productId} introuvable.`);
+        }
+  
+        const total = price * quantity;
+  
+        // Valider les valeurs
+        if (isNaN(total)) {
+          console.error(`Le calcul du total a échoué pour le produit ${productName}. Prix: ${price}, Quantité: ${quantity}`);
+          throw new Error(`Données invalides pour le produit ${productName}. Prix: ${price}, Quantité: ${quantity}`);
+        }
+  
+        // Ajouter la ligne au tableau
+        bodyRows.push([productName, quantity, `${price} FCFA`, `${total} FCFA`]);
+      }
+  
+      content.push({
+        table: {
+          headerRows: 1,
+          widths: ['*', 'auto', 'auto', 'auto'],
+          body: [['Produit', 'Quantité', 'Prix unitaire', 'Total'], ...bodyRows],
+        },
+        margin: [0, 10, 0, 20],
+      });
+  
+      // Pied de page
+      content.push({ text: 'Merci pour votre achat !', style: 'footer', margin: [0, 20, 0, 0] });
+  
+      // Définir le document PDF
+      const docDefinition = {
+        content,
+        styles: {
+          header: { fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+          subheader: { fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+          sectionHeader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5] },
+          footer: { fontSize: 12, alignment: 'center' },
+        },
+      };
+  
+      // Générer le PDF en tant que Buffer
+      return new Promise((resolve, reject) => {
+        (pdfMake as any).createPdf(docDefinition).getBuffer((buffer: Buffer) => {
+          if (buffer) {
+          // Sauvegarder le fichier localement pour inspection
+          const tempDir = path.join(__dirname, '../temp');
+          //const filePath = path.join(__dirname, `../temp/invoice_${orderId}.pdf`);
+          const filePath = path.join(tempDir, `invoice_${orderId}.pdf`);
+
+          // Vérifier si le dossier temp existe, sinon le créer
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+            console.log(`Dossier temp créé : ${tempDir}`);
+          }
+
+          fs.writeFileSync(filePath, buffer);
+          console.log(`Fichier PDF sauvegardé localement : ${filePath}`);
+      
+          // Convertir en base64 pour Airtable
+          //resolve(buffer.toString('base64'));
+          resolve(buffer);
+          } else {
+            reject(new Error('Erreur lors de la génération du PDF.'));
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Erreur lors de la génération de la facture :', error.message);
+      throw error;
+    }
+  }
+  
+  //Méthode pour envoyer l'e-mail avec la pièce jointe.
+  async sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void> {
+    try {
+      // Générer le fichier PDF
+      const pdfBuffer = await this.generateInvoice(orderId);
+      const fileName = `invoice_${orderId}.pdf`;
+
+    const transporter = nodemailer.createTransport({
+      host: 'mail.sourx.com', // Remplacez par l'adresse SMTP de votre hébergeur
+      port: 465, // Port SMTP (généralement 587 pour TLS ou 465 pour SSL)
+      secure: true, // Utilisez `true` si le port est 465 (SSL)
+      auth: {
+        user: process.env.EMAIL_USER, // Votre adresse email
+        pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
+      },
+      tls: {
+        rejectUnauthorized: false, // Ignorer les certificats non valides (si nécessaire)
+      },
+    });
+    
+      // Options de l'e-mail
+      const mailOptions = {
+        from: process.env.EMAIL_USER, // Expéditeur
+        to: buyerEmail, // Destinataire
+        subject: `Votre facture - Commande #${orderId}`, // Objet
+        text: `Bonjour,\n\nVeuillez trouver ci-joint votre facture pour la commande #${orderId}.`, // Contenu texte
+        attachments: [
+          {
+            filename: fileName,
+            content: pdfBuffer, // Contenu du fichier PDF
+          },
+        ],
+      };
+
+      // Envoyer l'e-mail
+      await transporter.sendMail(mailOptions);
+      console.log(`Facture envoyée avec succès à ${buyerEmail}`);
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de la facture par e-mail :', error.message);
+      throw error;
+    }
+  }
 }

@@ -1,8 +1,11 @@
+import { Response } from 'express';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './create-order.dto';
 export declare class OrdersController {
     private readonly ordersService;
     constructor(ordersService: OrdersService);
+    private getUrl;
+    private getHeaders;
     findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     create(createOrderDto: CreateOrderDto, req: any): Promise<any>;
@@ -13,4 +16,19 @@ export declare class OrdersController {
         data: any;
     }>;
     getOrderPayments(orderId: string): Promise<any>;
+    generateAndStoreInvoice(orderId: string): Promise<{
+        message: string;
+        data: {
+            orderId: string;
+            invoiceUrl: any;
+        };
+    }>;
+    previewInvoice(orderId: string, res: Response): Promise<void>;
+    sendInvoice(orderId: string): Promise<{
+        message: string;
+        data: {
+            orderId: string;
+            email: any;
+        };
+    }>;
 }

@@ -18,4 +18,7 @@ export declare class OrdersService {
     calculateFarmerPayments(products: string[], quantities: number[]): Promise<any>;
     getOrdersByFarmer(farmerId: string): Promise<any>;
     getOrderPayments(orderId: string): Promise<any>;
+    private loadPdfFonts;
+    generateInvoice(orderId: string): Promise<Buffer>;
+    sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void>;
 }

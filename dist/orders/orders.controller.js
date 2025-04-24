@@ -17,9 +17,19 @@ const common_1 = require("@nestjs/common");
 const orders_service_1 = require("./orders.service");
 const create_order_dto_1 = require("./create-order.dto");
 const auth_guard_1 = require("../auth/auth.guard");
+const axios_1 = require("axios");
 let OrdersController = class OrdersController {
     constructor(ordersService) {
         this.ordersService = ordersService;
+    }
+    getUrl() {
+        return `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Orders`;
+    }
+    getHeaders() {
+        return {
+            Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+        };
     }
     async findAll() {
         return this.ordersService.findAll();
@@ -70,6 +80,76 @@ let OrdersController = class OrdersController {
         catch (error) {
             console.error('Erreur lors de la récupération des détails de paiement :', error.message);
             throw error;
+        }
+    }
+    async generateAndStoreInvoice(orderId) {
+        try {
+            const pdfBuffer = await this.ordersService.generateInvoice(orderId);
+            const base64Content = pdfBuffer.toString('base64');
+            const fileName = `invoice_${orderId}.pdf`;
+            const fileSizeInBytes = Buffer.from(base64Content, 'base64').length;
+            const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
+            if (fileSizeInMB > 5) {
+                throw new Error('Le fichier PDF est trop volumineux (limite : 5 Mo).');
+            }
+            const response = await axios_1.default.patch(`${this.getUrl()}/${orderId}`, {
+                fields: {
+                    invoice: [
+                        {
+                            url: `data:application/pdf;base64,${base64Content}`,
+                            filename: fileName,
+                        },
+                    ],
+                },
+            }, { headers: this.getHeaders() });
+            console.log('Facture enregistrée avec succès :', response.data);
+            return {
+                message: 'Facture générée et enregistrée avec succès.',
+                data: {
+                    orderId,
+                    invoiceUrl: response.data.fields.invoice[0].url,
+                },
+            };
+        }
+        catch (error) {
+            console.error('Erreur lors de la génération et du stockage de la facture :', error.response?.data || error.message);
+            throw Error;
+        }
+    }
+    async previewInvoice(orderId, res) {
+        try {
+            const pdfBuffer = await this.ordersService.generateInvoice(orderId);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.send(pdfBuffer);
+        }
+        catch (error) {
+            console.error('Erreur lors de la prévisualisation de la facture :', error.message);
+            res.status(500).send('Erreur lors de la génération de la facture.');
+        }
+    }
+    async sendInvoice(orderId) {
+        try {
+            const existingOrder = await this.ordersService.findOne(orderId);
+            if (!existingOrder) {
+                throw new Error('Commande introuvable.');
+            }
+            const orderDetails = existingOrder.fields;
+            const buyerEmail = orderDetails.buyerEmail;
+            if (!buyerEmail) {
+                throw new Error('Aucun e-mail trouvé pour cette commande.');
+            }
+            await this.ordersService.sendInvoiceByEmail(orderId, buyerEmail);
+            return {
+                message: 'Facture envoyée avec succès.',
+                data: {
+                    orderId,
+                    email: buyerEmail,
+                },
+            };
+        }
+        catch (error) {
+            console.error('Erreur lors de l\'envoi de la facture :', error.message);
+            throw Error;
         }
     }
 };
@@ -140,6 +220,30 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getOrderPayments", null);
+__decorate([
+    (0, common_1.Post)('invoice/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "generateAndStoreInvoice", null);
+__decorate([
+    (0, common_1.Get)('preview-invoice/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "previewInvoice", null);
+__decorate([
+    (0, common_1.Post)('send-invoice/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "sendInvoice", null);
 exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
     __metadata("design:paramtypes", [orders_service_1.OrdersService])
