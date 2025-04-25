@@ -16,8 +16,6 @@ const dotenv = require("dotenv");
 const products_service_1 = require("../products/products.service");
 const users_service_1 = require("../users/users.service");
 const date_fns_1 = require("date-fns");
-const fs = require("fs");
-const path = require("path");
 const pdfMake = require("pdfmake/build/pdfmake");
 const pdfFonts = require("pdfmake/build/vfs_fonts");
 const nodemailer = require("nodemailer");
@@ -150,6 +148,7 @@ let OrdersService = class OrdersService {
             if (status === 'confirmed') {
                 let products = existingOrder.fields.products;
                 let quantities = existingOrder.fields.Qty;
+                let mesurements = existingOrder.fields.mesure;
                 console.log('Produits avant normalisation :', products);
                 console.log('Quantités avant normalisation :', quantities);
                 if (typeof products === 'string') {
@@ -233,6 +232,8 @@ let OrdersService = class OrdersService {
             const farmerId = product.fields.farmerId[0];
             const price = product.fields.price || 0;
             const lib = product.fields.Name;
+            const mesure = product.fields.mesure;
+            const category = product.fields.category;
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
@@ -252,8 +253,10 @@ let OrdersService = class OrdersService {
             farmerPayments[farmerId].products.push({
                 productId,
                 lib,
+                category,
                 quantity,
                 price,
+                mesure,
                 total: totalAmount,
             });
         }
@@ -285,10 +288,11 @@ let OrdersService = class OrdersService {
                     const formattedStatusDate = rawStatusDate ? (0, date_fns_1.format)(new Date(rawStatusDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
                     farmerOrders.push({
                         orderId,
+                        buyer: fields.buyerName,
+                        totalAmount: farmerPayment.totalAmount,
                         status: fields.status,
                         createdDate: formattedDate,
                         statusDate: formattedStatusDate,
-                        totalAmount: farmerPayment.totalAmount,
                         totalProducts: farmerPayment.totalProducts,
                         products: farmerPayment.products,
                     });
@@ -337,6 +341,7 @@ let OrdersService = class OrdersService {
             }
             const orderDetails = existingOrder.fields;
             const buyerName = orderDetails.buyerName || 'Client inconnu';
+            const buyerAddress = orderDetails.buyerAddress || 'Addresse inconnue';
             const totalPrice = orderDetails.totalPrice || 0;
             const totalProducts = orderDetails.Nbr || 0;
             const products = orderDetails.products || [];
@@ -350,11 +355,7 @@ let OrdersService = class OrdersService {
             if (typeof quantities === 'string') {
                 normalizedQuantities = quantities.split(',').map(qty => {
                     const parsedQty = Number(qty.trim());
-                    if (isNaN(parsedQty)) {
-                        console.error(`Quantité invalide détectée : "${qty}"`);
-                        return 0;
-                    }
-                    return parsedQty;
+                    return isNaN(parsedQty) ? 0 : parsedQty;
                 });
             }
             console.log('Produits normalisés :', normalizedProducts);
@@ -365,13 +366,30 @@ let OrdersService = class OrdersService {
             const rawDate = orderDetails.createdAt;
             const formattedDate = rawDate ? (0, date_fns_1.format)(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
             const content = [];
-            content.push({ text: 'FACTURE', style: 'header' });
-            content.push({ text: `Commande #${orderId}`, style: 'subheader' });
-            content.push({ text: `Acheteur : ${buyerName}`, margin: [0, 0, 0, 5] });
-            content.push({ text: `Products : ${totalProducts}`, margin: [0, 0, 0, 5] });
-            content.push({ text: `total Price : ${totalPrice} FCFA`, margin: [0, 0, 0, 5] });
-            content.push({ text: `Date : ${formattedDate}`, margin: [0, 0, 0, 15] });
-            content.push({ text: 'Détails des produits', style: 'sectionHeader' });
+            content.push({
+                columns: [
+                    {
+                        stack: [
+                            { text: 'SOURX LIMITED', style: 'header' },
+                            { text: '799 Market St Floor 8', margin: [0, 5, 0, 0] },
+                            { text: 'San Francisco, California 94103', margin: [0, 0, 0, 0] },
+                            { text: 'United States', margin: [0, 0, 0, 0] },
+                            { text: 'support+billing@sourx.com', margin: [0, 0, 0, 0] },
+                        ],
+                    },
+                    {
+                        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==',
+                        width: 50,
+                    },
+                ],
+            });
+            content.push({ text: 'Invoice Number: recQW2Ew07NhBBUkX', margin: [0, 0, 0, 5], style: 'sectionHeader' });
+            content.push({ text: `Date of Issue: ${formattedDate}`, margin: [0, 0, 0, 5] });
+            content.push({ text: `Due Date: March 24, 2025`, margin: [0, 0, 0, 5] });
+            content.push({ text: 'Bill to', style: 'sectionHeader' });
+            content.push({ text: `Buyer: ${buyerName}`, margin: [0, 0, 0, 5] });
+            content.push({ text: `Address: ${buyerAddress}`, margin: [0, 0, 0, 15] });
+            content.push({ text: 'Order Details', style: 'sectionHeader' });
             const bodyRows = [];
             for (let i = 0; i < normalizedProducts.length; i++) {
                 const productId = normalizedProducts[i];
@@ -379,46 +397,50 @@ let OrdersService = class OrdersService {
                 const productName = product?.fields.Name || 'Produit inconnu';
                 const price = product?.fields.price || 0;
                 const quantity = normalizedQuantities[i];
-                console.log(`Produit ID: ${productId}, Nom: ${productName}, Prix: ${price}, Quantité: ${quantity}`);
-                if (!product) {
-                    console.warn(`Produit avec l'ID ${productId} introuvable.`);
-                }
                 const total = price * quantity;
-                if (isNaN(total)) {
-                    console.error(`Le calcul du total a échoué pour le produit ${productName}. Prix: ${price}, Quantité: ${quantity}`);
-                    throw new Error(`Données invalides pour le produit ${productName}. Prix: ${price}, Quantité: ${quantity}`);
-                }
                 bodyRows.push([productName, quantity, `${price} FCFA`, `${total} FCFA`]);
             }
             content.push({
                 table: {
                     headerRows: 1,
                     widths: ['*', 'auto', 'auto', 'auto'],
-                    body: [['Produit', 'Quantité', 'Prix unitaire', 'Total'], ...bodyRows],
+                    body: [
+                        [{ text: 'Description', style: 'tableHeader' },
+                            { text: 'Quantity', style: 'tableHeader' },
+                            { text: 'Unit Price', style: 'tableHeader' },
+                            { text: 'Amount', style: 'tableHeader' }],
+                        ...bodyRows.map(row => row.map(cell => ({ text: cell, style: 'tableBody' }))),
+                    ],
                 },
+                layout: 'noBorders',
                 margin: [0, 10, 0, 20],
             });
-            content.push({ text: 'Merci pour votre achat !', style: 'footer', margin: [0, 20, 0, 0] });
+            content.push({ text: 'Summary', style: 'sectionHeader' });
+            content.push({ text: `Products: ${totalProducts}`, margin: [0, 0, 0, 5] });
+            content.push({ text: `Total: ${totalPrice} FCFA`, margin: [0, 0, 0, 5] });
+            content.push({
+                columns: [
+                    { text: 'Thank you for your purchase!', style: 'footer' },
+                    { text: 'Page 1 of 1', style: 'footer', alignment: 'right' },
+                ],
+            });
             const docDefinition = {
                 content,
                 styles: {
-                    header: { fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-                    subheader: { fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-                    sectionHeader: { fontSize: 14, bold: true, margin: [0, 15, 0, 5] },
-                    footer: { fontSize: 12, alignment: 'center' },
+                    header: { fontSize: 24, bold: true, alignment: 'center', color: '#007BFF', margin: [0, 0, 0, 15] },
+                    subheader: { fontSize: 18, bold: true, alignment: 'center', color: '#007BFF', margin: [0, 0, 0, 10] },
+                    sectionHeader: { fontSize: 16, bold: true, color: '#007BFF', margin: [0, 15, 0, 5] },
+                    tableHeader: { bold: true, fontSize: 13, color: '#007BFF' },
+                    tableBody: { fontSize: 12, color: 'black' },
+                    footer: { fontSize: 12, alignment: 'center', margin: [0, 20, 0, 0] },
                 },
+                defaultStyle: { font: 'Roboto' },
+                pageSize: 'A4',
+                pageMargins: [20, 20, 20, 20],
             };
             return new Promise((resolve, reject) => {
                 pdfMake.createPdf(docDefinition).getBuffer((buffer) => {
                     if (buffer) {
-                        const tempDir = path.join(__dirname, '../temp');
-                        const filePath = path.join(tempDir, `invoice_${orderId}.pdf`);
-                        if (!fs.existsSync(tempDir)) {
-                            fs.mkdirSync(tempDir, { recursive: true });
-                            console.log(`Dossier temp créé : ${tempDir}`);
-                        }
-                        fs.writeFileSync(filePath, buffer);
-                        console.log(`Fichier PDF sauvegardé localement : ${filePath}`);
                         resolve(buffer);
                     }
                     else {

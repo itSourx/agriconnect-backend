@@ -57,6 +57,14 @@ __decorate([
 ], CreateProductDto.prototype, "category", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
+        example: 'Kilo',
+        description: 'La mesure du produit. C\'est une liste déroulante ("Kilo", "Tas", "Unite..") ',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "mesure", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
         example: 'doe@example.com',
         description: 'L\'email de l\'utilisateur qui crée le produit doit être passé en paramètre. C\'est à récupérer automatiquement dans la réponse du serveur à l\'authentification de l\'utilsateur (/auth/login). ',
     }),

@@ -12,14 +12,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateOrderDto = exports.OrderProductDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const swagger_1 = require("@nestjs/swagger");
 class OrderProductDto {
 }
 exports.OrderProductDto = OrderProductDto;
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'recQW2EwO7NhBBUkX',
+        description: 'ID du produit',
+    }),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], OrderProductDto.prototype, "id", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        example: '25',
+        description: 'La quantité du produit',
+    }),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], OrderProductDto.prototype, "quantity", void 0);
@@ -27,6 +36,10 @@ class CreateOrderDto {
 }
 exports.CreateOrderDto = CreateOrderDto;
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        example: '[{ "id": "rec4aAR2UPDfhYcRG", "quantity": 2 }, { "id": "recCzV2gqqSK721IE", "quantity": 3 }]',
+        description: 'Formater les détails du produits (id et quantité) en tableau',
+    }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
     (0, class_transformer_1.Type)(() => OrderProductDto),

@@ -41,6 +41,13 @@ export class CreateProductDto {
   category: string; // Type de produit : "Cereal", "Fruts", "Legumes..."
 
   @ApiProperty({
+    example: 'Kilo',
+    description: 'La mesure du produit. C\'est une liste déroulante ("Kilo", "Tas", "Unite..") ',
+  })
+  @IsString()
+  mesure: string; // Type de produit : "Kilo", "Tas", "Unite.."
+
+  @ApiProperty({
     example: 'doe@example.com',
     description: 'L\'email de l\'utilisateur qui crée le produit doit être passé en paramètre. C\'est à récupérer automatiquement dans la réponse du serveur à l\'authentification de l\'utilsateur (/auth/login). ',
   })

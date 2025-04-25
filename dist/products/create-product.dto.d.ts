@@ -4,6 +4,7 @@ export declare class CreateProductDto {
     quantity: number;
     price: number;
     category: string;
+    mesure: string;
     email: string;
     Photo: string[];
 }

@@ -8,7 +8,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as pdfMake from 'pdfmake/build/pdfmake';
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
-//import { TDocumentDefinitions, Content } from 'pdfmake/build/interfaces';
+import { customFonts } from './custom-fonts'; // Importer les polices personnalisées
+
 import * as nodemailer from 'nodemailer';
 
 
@@ -202,6 +203,8 @@ export class OrdersService {
         if (status === 'confirmed') {  
           let products = existingOrder.fields.products;
           let quantities = existingOrder.fields.Qty;
+          let mesurements = existingOrder.fields.mesure;
+
 
           console.log('Produits avant normalisation :', products);
           console.log('Quantités avant normalisation :', quantities);
@@ -216,6 +219,16 @@ export class OrdersService {
           } else if (!Array.isArray(products)) {
             products = [products];
           }
+
+          /*if (typeof mesurements === 'string') {
+            try {
+              mesurements = JSON.parse(mesurements);
+            } catch (error) {
+              mesurements = [mesurements];
+            }
+          } else if (!Array.isArray(mesurements)) {
+            mesurements = [mesurements];
+          }*/
     
           if (typeof quantities === 'string') {
             try {
@@ -248,12 +261,13 @@ export class OrdersService {
           // Vérifier que les produits et les quantités ont la même longueur
           if (products.length !== quantities.length) {
             throw Error('Les données de la commande sont incohérentes.');
-          }
-    
+          }          
+
           // Mettre à jour le stock des produits
           for (let i = 0; i < products.length; i++) {
             const productId = products[i];
             const quantity = quantities[i];
+            //const mesure = mesurements[i];
             await this.productsService.updateStock(productId, quantity);
           }
 
@@ -302,6 +316,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
   for (let i = 0; i < products.length; i++) {
     const productId = products[i];
     const quantity = quantities[i];
+    //const mesure = mesurements[i];
 
     // Récupérer les détails du produit depuis Airtable
     const product = await this.productsService.findOne(productId);
@@ -313,6 +328,8 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const farmerId = product.fields.farmerId[0]; // ID de l'agriculteur (relation)
     const price = product.fields.price || 0; // Prix unitaire
     const lib = product.fields.Name; // Libellé du produit
+    const mesure = product.fields.mesure; // mesure du produit
+    const category = product.fields.category; // categorie du produit
     //const img = product.fields.Photo; // Image du produit
 
 
@@ -344,8 +361,10 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       productId,
       //img,
       lib,
+      category,
       quantity,
       price,
+      mesure,
       total: totalAmount,
     });
   }
@@ -368,6 +387,7 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       totalProducts: number;
       createdDate: string;
       statusDate: string;
+      buyer: string;
       products: any[];
     };
 
@@ -402,10 +422,11 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         // Ajouter les détails de la commande pour cet agriculteur
         farmerOrders.push({
           orderId,
+          buyer: fields.buyerName,
+          totalAmount: farmerPayment.totalAmount,
           status: fields.status,
           createdDate: formattedDate,
           statusDate: formattedStatusDate,
-          totalAmount: farmerPayment.totalAmount,
           totalProducts: farmerPayment.totalProducts,
           products: farmerPayment.products,
         });
@@ -451,13 +472,41 @@ async getOrderPayments(orderId: string): Promise<any> {
   }
 }
   // Charger les polices nécessaires pour pdfmake
+  /*private loadPdfFonts() {
+    try {
+      // Charger les polices par défaut
+      (pdfMake as any).vfs = { ...pdfFonts.pdfMake.vfs };
+  
+      // Charger uniquement Helvetica-Bold.ttf
+      const helveticaBoldBase64 = customFonts.Helvetica.bold;
+      if (!helveticaBoldBase64) {
+        throw new Error('Les données base64 pour Helvetica-Bold.ttf sont manquantes.');
+      }
+  
+      // Ajouter la police au système vfs
+      (pdfMake as any).vfs['Helvetica-Bold.ttf'] = helveticaBoldBase64;
+  
+      // Définir les polices disponibles dans pdfmake
+      (pdfMake as any).fonts = {
+        Helvetica: {
+          bold: 'Helvetica-Bold.ttf', // Nom exact du fichier
+        },
+      };
+  
+      console.log('Police Helvetica-Bold.ttf chargée avec succès.');
+    } catch (error) {
+      console.error('Erreur lors du chargement des polices :', error.message);
+      throw error;
+    }
+  }*/
+
   private loadPdfFonts() {
     // Assigner explicitement les polices à pdfMake
     (pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
   }
 
   // Méthode pour générer la facture PDF.
-  async generateInvoice(orderId: string): Promise<Buffer> {
+  /*async generateInvoice(orderId: string): Promise<Buffer> {
     this.loadPdfFonts();
   
     try {
@@ -610,8 +659,154 @@ async getOrderPayments(orderId: string): Promise<any> {
       console.error('Erreur lors de la génération de la facture :', error.message);
       throw error;
     }
-  }
-  
+  }*/
+    async generateInvoice(orderId: string): Promise<Buffer> {
+      this.loadPdfFonts();
+    
+      try {
+        const existingOrder = await this.findOne(orderId);
+    
+        if (!existingOrder) {
+          throw new Error('Commande introuvable.');
+        }
+    
+        const orderDetails = existingOrder.fields;
+        const buyerName = orderDetails.buyerName || 'Client inconnu';
+        const buyerAddress = orderDetails.buyerAddress || 'Addresse inconnue';
+        const totalPrice = orderDetails.totalPrice || 0;
+        const totalProducts = orderDetails.Nbr || 0;
+        const products = orderDetails.products || [];
+        const quantities = orderDetails.Qty || [];
+    
+        console.log('Produits bruts :', products);
+        console.log('Quantités brutes :', quantities);
+    
+        const normalizedProducts = Array.isArray(products) ? products : [products];
+        let normalizedQuantities = Array.isArray(quantities)
+          ? quantities.map(Number)
+          : [Number(quantities)];
+    
+        if (typeof quantities === 'string') {
+          normalizedQuantities = quantities.split(',').map(qty => {
+            const parsedQty = Number(qty.trim());
+            return isNaN(parsedQty) ? 0 : parsedQty;
+          });
+        }
+    
+        console.log('Produits normalisés :', normalizedProducts);
+        console.log('Quantités normalisées :', normalizedQuantities);
+    
+        if (normalizedProducts.length !== normalizedQuantities.length) {
+          throw new Error('Les données de la commande sont incohérentes.');
+        }
+    
+        const rawDate = orderDetails.createdAt;
+        const formattedDate = rawDate ? format(new Date(rawDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
+    
+        const content: any[] = [];
+    
+        // En-tête avec logo
+        content.push({
+          columns: [
+            {
+              stack: [
+                { text: 'SOURX LIMITED', style: 'header' },
+                { text: '799 Market St Floor 8', margin: [0, 5, 0, 0] },
+                { text: 'San Francisco, California 94103', margin: [0, 0, 0, 0] },
+                { text: 'United States', margin: [0, 0, 0, 0] },
+                { text: 'support+billing@sourx.com', margin: [0, 0, 0, 0] },
+              ],
+            },
+            {
+              image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==', // Remplacez par le chemin ou la base64 de votre logo
+              width: 50,
+            },
+          ],
+        });
+    
+        content.push({ text: 'Invoice Number: recQW2Ew07NhBBUkX', margin: [0, 0, 0, 5], style: 'sectionHeader' });
+        content.push({ text: `Date of Issue: ${formattedDate}`, margin: [0, 0, 0, 5] });
+        content.push({ text: `Due Date: March 24, 2025`, margin: [0, 0, 0, 5] });
+    
+        content.push({ text: 'Bill to', style: 'sectionHeader' });
+        content.push({ text: `Buyer: ${buyerName}`, margin: [0, 0, 0, 5] });
+        //content.push({ text: `Address: 123 Main Street, City, Country`, margin: [0, 0, 0, 15] });
+        content.push({ text: `Address: ${buyerAddress}`, margin: [0, 0, 0, 15] });
+
+    
+        content.push({ text: 'Order Details', style: 'sectionHeader' });
+    
+        const bodyRows: Array<[string, number, string, string]> = [];
+        for (let i = 0; i < normalizedProducts.length; i++) {
+          const productId = normalizedProducts[i];
+          const product = await this.productsService.findOne(productId);
+          const productName = product?.fields.Name || 'Produit inconnu';
+          const price = product?.fields.price || 0;
+          const quantity = normalizedQuantities[i];
+    
+          const total = price * quantity;
+    
+          bodyRows.push([productName, quantity, `${price} FCFA`, `${total} FCFA`]);
+        }
+    
+        content.push({
+          table: {
+            headerRows: 1,
+            widths: ['*', 'auto', 'auto', 'auto'],
+            body: [
+              [{ text: 'Description', style: 'tableHeader' },
+               { text: 'Quantity', style: 'tableHeader' },
+               { text: 'Unit Price', style: 'tableHeader' },
+               { text: 'Amount', style: 'tableHeader' }],
+              ...bodyRows.map(row => row.map(cell => ({ text: cell, style: 'tableBody' }))),
+            ],
+          },
+          layout: 'noBorders',
+          margin: [0, 10, 0, 20],
+        });
+    
+        content.push({ text: 'Summary', style: 'sectionHeader' });
+        //content.push({ text: `Subtotal: ${totalPrice} FCFA`, margin: [0, 0, 0, 5] });
+        content.push({ text: `Products: ${totalProducts}`, margin: [0, 0, 0, 5] }); 
+        content.push({ text: `Total: ${totalPrice} FCFA`, margin: [0, 0, 0, 5] });
+    
+        content.push({
+          columns: [
+            { text: 'Thank you for your purchase!', style: 'footer' },
+            { text: 'Page 1 of 1', style: 'footer', alignment: 'right' },
+          ],
+        });
+    
+        const docDefinition = {
+          content,
+          styles: {
+            header: { fontSize: 24, bold: true, alignment: 'center', color: '#007BFF', margin: [0, 0, 0, 15] },
+            subheader: { fontSize: 18, bold: true, alignment: 'center', color: '#007BFF', margin: [0, 0, 0, 10] },
+            sectionHeader: { fontSize: 16, bold: true, color: '#007BFF', margin: [0, 15, 0, 5] },
+            tableHeader: { bold: true, fontSize: 13, color: '#007BFF' },
+            tableBody: { fontSize: 12, color: 'black' },
+            footer: { fontSize: 12, alignment: 'center', margin: [0, 20, 0, 0] },
+          },
+          defaultStyle: { font: 'Roboto' }, // Utiliser Roboto comme police par défaut
+          pageSize: 'A4',
+          pageMargins: [20, 20, 20, 20],
+        };
+    
+        return new Promise((resolve, reject) => {
+          (pdfMake as any).createPdf(docDefinition).getBuffer((buffer: Buffer) => {
+            if (buffer) {
+              resolve(buffer);
+            } else {
+              reject(new Error('Erreur lors de la génération du PDF.'));
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Erreur lors de la génération de la facture :', error.message);
+        throw error;
+      }
+    }
+      
   //Méthode pour envoyer l'e-mail avec la pièce jointe.
   async sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void> {
     try {
@@ -631,7 +826,7 @@ async getOrderPayments(orderId: string): Promise<any> {
         rejectUnauthorized: false, // Ignorer les certificats non valides (si nécessaire)
       },
     });
-    
+
       // Options de l'e-mail
       const mailOptions = {
         from: process.env.EMAIL_USER, // Expéditeur
