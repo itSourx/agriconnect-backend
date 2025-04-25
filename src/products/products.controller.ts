@@ -143,7 +143,7 @@ export class ProductsController {
     return this.productsService.update(id, data);
   }
   @Put('upload/:id')
-  @UseGuards(AuthGuard)
+  //@UseGuards(AuthGuard)
   @UseInterceptors(FilesInterceptor('files')) // 'files' est le nom du champ dans FormData
   @ApiConsumes('multipart/form-data')
   async updateUpload(
