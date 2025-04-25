@@ -11,6 +11,8 @@ export declare class ProductsService {
     findOne(id: string): Promise<any>;
     search(query: string): Promise<any[]>;
     create(data: any): Promise<any>;
+    createWithFileUpload(data: any, files: Express.Multer.File[]): Promise<any>;
+    private uploadFileToAirtable;
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     findAllByCategory(category: string): Promise<any[]>;

@@ -2,7 +2,8 @@ import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedE
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import { UsersService } from '../users/users.service'; // Importez ProfilesService
-
+import { Express } from 'express';
+import * as multer from 'multer';
 
 dotenv.config();
 
@@ -115,7 +116,72 @@ export class ProductsService {
       };
     } catch (error) {
       console.error('Erreur lors de la création du produit :', error);
-      throw new Error('Impossible de créer ce produit.');
+      throw Error; //('Impossible de créer ce produit.');
+    }
+  }
+
+  async createWithFileUpload(data: any, files: Express.Multer.File[]): Promise<any> {
+    // 1. Traitement de l'email/utilisateur
+    if (data.email) {
+      const user = await this.usersService.findOneByEmail(data.email);
+      if (!user) throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
+      data.user = [user.id];
+      delete data.email;
+    }
+  
+    // 2. Traitement des fichiers uploadés
+    if (files && files.length > 0) {
+      const uploadPromises = files.map(file => {
+        return this.uploadFileToAirtable(file);
+      });
+      
+      data.Photo = await Promise.all(uploadPromises);
+    } else if (data.Photo) {
+      // Gestion des URLs comme avant
+      data.Photo = typeof data.Photo === 'string' 
+        ? [{ url: data.Photo }] 
+        : data.Photo.map((url: string) => ({ url }));
+    }
+  
+    // 3. Création du produit
+    try {
+      const response = await axios.post(
+        this.getUrl(),
+        { records: [{ fields: data }] },
+        { headers: this.getHeaders() }
+      );
+      
+      const createdRecord = response.data.records[0];
+      return {
+        id: createdRecord.id, // Correction: utiliser createdRecord.id au lieu de generatedId
+        fields: createdRecord.fields,
+      };
+    } catch (error) {
+      console.error('Erreur création produit:', error);
+      throw error;
+    }
+  }
+  
+  private async uploadFileToAirtable(file: Express.Multer.File): Promise<any> {
+    const formData = new FormData();
+    // Correction pour l'append du fichier
+    formData.append('file', new Blob([file.buffer]), file.originalname);
+  
+    try {
+      const response = await axios.post(
+        'https://api.airtable.com/v0/appby4zylKcK8soNg/Products/attachments',
+        formData,
+        {
+          headers: {
+            ...this.getHeaders(),
+            'Content-Type': 'multipart/form-data',
+          }
+        }
+      );
+      return { url: response.data.url };
+    } catch (error) {
+      console.error('Erreur upload fichier:', error);
+      throw new Error('Échec de l\'upload du fichier');
     }
   }
 

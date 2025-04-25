@@ -1,11 +1,13 @@
-import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request, UseGuards } from '@nestjs/common';
+import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes  } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { multerOptions } from '../config/multer.config';
 
 
-
+@ApiTags('products')
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -81,8 +83,35 @@ export class ProductsController {
      @ApiResponse({ status: 401, description: 'Aucun token fourni.' }) // Réponse en cas d'échec
      @ApiResponse({ status: 400, description: 'Requête mal envoyée, il manque un paramètre dont la valeur n\'a pas été fournie.' }) // Réponse en cas d'échec
 
-
-   async create(@Body() CreateProductDto: CreateProductDto, @Request() req) {
+     @Post()
+     @UseGuards(AuthGuard)
+     @UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData
+     @ApiConsumes('multipart/form-data')
+     @ApiBody({
+       schema: {
+         type: 'object',
+         properties: {
+           Name: { type: 'string' },
+           description: { type: 'string' },
+           quantity: { type: 'number' },
+           price: { type: 'string' },
+           category: { type: 'string' },
+           mesure: { type: 'string' },
+           email: { type: 'string' },
+           Photos: {
+             type: 'array',
+             items: {
+               type: 'string',
+               format: 'binary',
+             },
+           },
+         },
+       },
+     })
+   async create(
+    @Body() CreateProductDto: CreateProductDto,
+    @UploadedFiles() files: Express.Multer.File[], 
+    @Request() req) {
 
     console.log('Utilisateur connecté :', req.user);
     // Afficher les types et valeurs exactes
@@ -96,6 +125,9 @@ export class ProductsController {
     if (req.user.profile.trim() !=='AGRICULTEUR') {
       console.error(`Profile incorrect : ${req.user.profile}`);
       throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
+    }
+    if (files && files.length > 0) {
+      return this.productsService.createWithFileUpload(CreateProductDto, files);
     }
      return this.productsService.create(CreateProductDto);
    }

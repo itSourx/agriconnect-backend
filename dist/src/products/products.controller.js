@@ -47,9 +47,6 @@ let ProductsController = class ProductsController {
             console.error(`Profile incorrect : ${req.user.profile}`);
             throw new common_1.UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
         }
-        if (files && files.length > 0) {
-            return this.productsService.createWithFileUpload(CreateProductDto, files);
-        }
         return this.productsService.create(CreateProductDto);
     }
     async update(id, data) {
@@ -131,7 +128,7 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Requête mal envoyée, il manque un paramètre dont la valeur n\'a pas été fournie.' }),
     (0, common_1.Post)(),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
-    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('photos', 10, multer_config_1.multerOptions)),
+    UseInterceptors((0, platform_express_1.FilesInterceptor)('photos', 10, multer_config_1.multerOptions)),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
     (0, swagger_1.ApiBody)({
         schema: {
@@ -144,7 +141,7 @@ __decorate([
                 category: { type: 'string' },
                 mesure: { type: 'string' },
                 email: { type: 'string' },
-                Photos: {
+                photos: {
                     type: 'array',
                     items: {
                         type: 'string',
@@ -155,7 +152,7 @@ __decorate([
         },
     }),
     __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.UploadedFiles)()),
+    __param(1, UploadedFiles()),
     __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [create_product_dto_1.CreateProductDto, Array, Object]),

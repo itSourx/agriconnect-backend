@@ -96,7 +96,56 @@ let ProductsService = class ProductsService {
         }
         catch (error) {
             console.error('Erreur lors de la création du produit :', error);
-            throw new Error('Impossible de créer ce produit.');
+            throw Error;
+        }
+    }
+    async createWithFileUpload(data, files) {
+        if (data.email) {
+            const user = await this.usersService.findOneByEmail(data.email);
+            if (!user)
+                throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
+            data.user = [user.id];
+            delete data.email;
+        }
+        if (files && files.length > 0) {
+            const uploadPromises = files.map(file => {
+                return this.uploadFileToAirtable(file);
+            });
+            data.Photo = await Promise.all(uploadPromises);
+        }
+        else if (data.Photo) {
+            data.Photo = typeof data.Photo === 'string'
+                ? [{ url: data.Photo }]
+                : data.Photo.map((url) => ({ url }));
+        }
+        try {
+            const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: data }] }, { headers: this.getHeaders() });
+            const createdRecord = response.data.records[0];
+            return {
+                id: createdRecord.id,
+                fields: createdRecord.fields,
+            };
+        }
+        catch (error) {
+            console.error('Erreur création produit:', error);
+            throw error;
+        }
+    }
+    async uploadFileToAirtable(file) {
+        const formData = new FormData();
+        formData.append('file', new Blob([file.buffer]), file.originalname);
+        try {
+            const response = await axios_1.default.post('https://api.airtable.com/v0/appby4zylKcK8soNg/Products/attachments', formData, {
+                headers: {
+                    ...this.getHeaders(),
+                    'Content-Type': 'multipart/form-data',
+                }
+            });
+            return { url: response.data.url };
+        }
+        catch (error) {
+            console.error('Erreur upload fichier:', error);
+            throw new Error('Échec de l\'upload du fichier');
         }
     }
     async update(id, data) {
