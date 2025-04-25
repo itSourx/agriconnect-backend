@@ -142,6 +142,29 @@ export class ProductsController {
   async update(@Param('id') id: string, @Body() data: any) {
     return this.productsService.update(id, data);
   }
+  @Put('upload/:id')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FilesInterceptor('files')) // 'files' est le nom du champ dans FormData
+  @ApiConsumes('multipart/form-data')
+  async updateUpload(
+    @Param('id') id: string,
+    @Body() updateData: any,
+    @UploadedFiles() files?: Express.Multer.File[],
+    @Request() req?: any
+  ) {
+    // Vérification des permissions (comme pour la création)
+    if (!req.user || req.user.profile.trim() !== 'AGRICULTEUR') {
+      throw new UnauthorizedException('Action réservée aux agriculteurs');
+    }
+  
+    // Séparation des photos et gallery si nécessaire
+    const fileGroups = {
+      photos: files?.filter(f => f.fieldname === 'photos'),
+      gallery: files?.filter(f => f.fieldname === 'gallery')
+    };
+  
+    return this.productsService.update(id, updateData, fileGroups);
+  }
 
   @Delete(':id')
   @UseGuards(AuthGuard)

@@ -186,7 +186,55 @@ export class ProductsService {
   }
 
   // Mettre à jour un produit
-  async update(id: string, data: any): Promise<any> {
+  async update(
+    id: string, 
+    data: any, 
+    files?: {
+      photos?: Express.Multer.File[],
+      gallery?: Express.Multer.File[]
+    }
+  ): Promise<any> {
+    // Traitement des photos uploadées
+    if (files?.photos?.length) {
+      const uploadPromises = files.photos.map(file => 
+        this.uploadFileToAirtable(file)
+      );
+      data.Photo = await Promise.all(uploadPromises);
+    } 
+    // Gestion des photos existantes (URLs)
+    else if (data.Photo) {
+      data.Photo = typeof data.Photo === 'string' 
+        ? [{ url: data.Photo }] 
+        : data.Photo.map((url: string) => ({ url }));
+    }
+  
+    // Traitement de la galerie uploadée
+    if (files?.gallery?.length) {
+      const uploadPromises = files.gallery.map(file => 
+        this.uploadFileToAirtable(file)
+      );
+      data.Gallery = await Promise.all(uploadPromises);
+    } 
+    // Gestion de la galerie existante (URLs)
+    else if (data.Gallery) {
+      data.Gallery = typeof data.Gallery === 'string'
+        ? [{ url: data.Gallery }]
+        : data.Gallery.map((url: string) => ({ url }));
+    }
+  
+    try {
+      const response = await axios.patch(
+        `${this.getUrl()}/${id}`,
+        { fields: data },
+        { headers: this.getHeaders() }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Erreur mise à jour produit:', error.response?.data || error.message);
+      throw new Error('Échec de la mise à jour du produit');
+    }
+  }
+  /*async update(id: string, data: any): Promise<any> {
     if (data.Photo) {
       // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
       if (typeof data.Photo === 'string') {
@@ -219,7 +267,7 @@ export class ProductsService {
       console.error('Erreur lors de la mise à jour du produit :', error);
       throw new Error('Impossible de mettre à jour le produit.');
     }
-  }
+  }*/
 
   async delete(id: string): Promise<any> {
     const response = await axios.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });

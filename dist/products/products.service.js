@@ -148,30 +148,32 @@ let ProductsService = class ProductsService {
             throw new Error('Échec de l\'upload du fichier');
         }
     }
-    async update(id, data) {
-        if (data.Photo) {
-            if (typeof data.Photo === 'string') {
-                data.Photo = [{ url: data.Photo }];
-            }
-            else if (Array.isArray(data.Photo)) {
-                data.Photo = data.Photo.map(url => ({ url }));
-            }
+    async update(id, data, files) {
+        if (files?.photos?.length) {
+            const uploadPromises = files.photos.map(file => this.uploadFileToAirtable(file));
+            data.Photo = await Promise.all(uploadPromises);
         }
-        if (data.Gallery) {
-            if (typeof data.Gallery === 'string') {
-                data.Gallery = [{ url: data.Gallery }];
-            }
-            else if (Array.isArray(data.Gallery)) {
-                data.Gallery = data.Photo.map(url => ({ url }));
-            }
+        else if (data.Photo) {
+            data.Photo = typeof data.Photo === 'string'
+                ? [{ url: data.Photo }]
+                : data.Photo.map((url) => ({ url }));
+        }
+        if (files?.gallery?.length) {
+            const uploadPromises = files.gallery.map(file => this.uploadFileToAirtable(file));
+            data.Gallery = await Promise.all(uploadPromises);
+        }
+        else if (data.Gallery) {
+            data.Gallery = typeof data.Gallery === 'string'
+                ? [{ url: data.Gallery }]
+                : data.Gallery.map((url) => ({ url }));
         }
         try {
             const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
             return response.data;
         }
         catch (error) {
-            console.error('Erreur lors de la mise à jour du produit :', error);
-            throw new Error('Impossible de mettre à jour le produit.');
+            console.error('Erreur mise à jour produit:', error.response?.data || error.message);
+            throw new Error('Échec de la mise à jour du produit');
         }
     }
     async delete(id) {

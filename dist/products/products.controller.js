@@ -55,6 +55,16 @@ let ProductsController = class ProductsController {
     async update(id, data) {
         return this.productsService.update(id, data);
     }
+    async updateUpload(id, updateData, files, req) {
+        if (!req.user || req.user.profile.trim() !== 'AGRICULTEUR') {
+            throw new common_1.UnauthorizedException('Action réservée aux agriculteurs');
+        }
+        const fileGroups = {
+            photos: files?.filter(f => f.fieldname === 'photos'),
+            gallery: files?.filter(f => f.fieldname === 'gallery')
+        };
+        return this.productsService.update(id, updateData, fileGroups);
+    }
     async delete(id) {
         return this.productsService.delete(id);
     }
@@ -170,6 +180,19 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Put)('upload/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files')),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.UploadedFiles)()),
+    __param(3, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Array, Object]),
+    __metadata("design:returntype", Promise)
+], ProductsController.prototype, "updateUpload", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),

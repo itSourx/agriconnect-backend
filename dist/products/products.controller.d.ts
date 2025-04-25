@@ -9,5 +9,6 @@ export declare class ProductsController {
     findOne(id: string): Promise<any>;
     create(CreateProductDto: CreateProductDto, files: Express.Multer.File[], req: any): Promise<any>;
     update(id: string, data: any): Promise<any>;
+    updateUpload(id: string, updateData: any, files?: Express.Multer.File[], req?: any): Promise<any>;
     delete(id: string): Promise<any>;
 }

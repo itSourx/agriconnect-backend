@@ -13,7 +13,10 @@ export declare class ProductsService {
     create(data: any): Promise<any>;
     createWithFileUpload(data: any, files: Express.Multer.File[]): Promise<any>;
     private uploadFileToAirtable;
-    update(id: string, data: any): Promise<any>;
+    update(id: string, data: any, files?: {
+        photos?: Express.Multer.File[];
+        gallery?: Express.Multer.File[];
+    }): Promise<any>;
     delete(id: string): Promise<any>;
     findAllByCategory(category: string): Promise<any[]>;
     updateStock(productId: string, quantity: number): Promise<any>;
