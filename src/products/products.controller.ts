@@ -5,6 +5,9 @@ import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes  } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../config/multer.config';
+import { Express } from 'express'; // Ajoutez cet import
+import { Multer } from 'multer'; // Ajoutez cet import
+
 
 
 @ApiTags('products')
@@ -111,6 +114,8 @@ export class ProductsController {
    async create(
     @Body() CreateProductDto: CreateProductDto,
     @UploadedFiles() files: Express.Multer.File[], 
+    //@UploadedFiles() files: Multer.File[], // Modification ici
+
     @Request() req) {
 
     console.log('Utilisateur connecté :', req.user);
