@@ -82,6 +82,14 @@ let ProductsService = class ProductsService {
                     data.Photo = data.Photo.map(url => ({ url }));
                 }
             }
+            if (data.Gallery) {
+                if (typeof data.Gallery === 'string') {
+                    data.Gallery = [{ url: data.Gallery }];
+                }
+                else if (Array.isArray(data.Gallery)) {
+                    data.Gallery = data.Gallery.map(url => ({ url }));
+                }
+            }
             data.user = [user.id];
             delete data.email;
         }
@@ -147,6 +155,12 @@ let ProductsService = class ProductsService {
             console.error('Erreur upload fichier:', error);
             throw new Error('Échec de l\'upload du fichier');
         }
+    }
+    async updatePhoto(productId, photo) {
+        const uploadedPhoto = await this.uploadFileToAirtable(photo);
+        return this.update(productId, {
+            Photo: [uploadedPhoto]
+        });
     }
     async update(id, data, files) {
         if (files?.photos?.length) {

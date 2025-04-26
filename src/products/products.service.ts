@@ -92,6 +92,16 @@ export class ProductsService {
           data.Photo = data.Photo.map(url => ({ url }));
         }
       }
+      if (data.Gallery) {
+        // Si Gallerie est une chaîne (URL), convertissez-la en tableau d'objets
+        if (typeof data.Gallery === 'string') {
+          data.Gallery = [{ url: data.Gallery }];
+        }
+        // Si Photo est un tableau de chaînes, convertissez chaque élément
+        else if (Array.isArray(data.Gallery)) {
+          data.Gallery = data.Gallery.map(url => ({ url }));
+        }
+      }
 
       // Formatez le champ "user" comme un tableau d'IDs
       data.user = [user.id];
@@ -185,6 +195,16 @@ export class ProductsService {
     }
   }
 
+// products.service.ts
+async updatePhoto(productId: string, photo: Express.Multer.File) {
+  // 1. Uploader la photo
+  const uploadedPhoto = await this.uploadFileToAirtable(photo);
+  
+  // 2. Mettre à jour le produit
+  return this.update(productId, { 
+    Photo: [uploadedPhoto] 
+  });
+}
   // Mettre à jour un produit
   async update(
     id: string, 
