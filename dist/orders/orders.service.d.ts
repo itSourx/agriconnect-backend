@@ -1,5 +1,6 @@
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
+import { Buffer } from 'buffer';
 export declare class OrdersService {
     private readonly productsService;
     private readonly usersService;
@@ -19,6 +20,7 @@ export declare class OrdersService {
     getOrdersByFarmer(farmerId: string): Promise<any>;
     getOrderPayments(orderId: string): Promise<any>;
     private loadPdfFonts;
+    loadImageAsBase64(imageUrl: string): Promise<string>;
     generateInvoice(orderId: string): Promise<Buffer>;
     sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void>;
 }

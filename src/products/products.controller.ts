@@ -142,7 +142,6 @@ export class ProductsController {
   async update(@Param('id') id: string, @Body() data: any) {
     return this.productsService.update(id, data);
   }
-// products.controller.ts
 @Put('update-photo')
 //@UseInterceptors(FileInterceptor('photo'))
 @UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData

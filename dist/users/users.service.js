@@ -130,6 +130,8 @@ let UsersService = class UsersService {
         if (existingUser) {
             throw new common_1.ConflictException('Un utilisateur avec cet email existe déjà.');
         }
+        const reference = Math.floor(1000000 + Math.random() * 9000000).toString();
+        data.reference = reference;
         if (data.Photo) {
             if (typeof data.Photo === 'string') {
                 data.Photo = [{ url: data.Photo }];

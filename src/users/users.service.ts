@@ -177,6 +177,10 @@ export class UsersService {
     if (existingUser) {
       throw new ConflictException('Un utilisateur avec cet email existe déjà.');
     }
+    // Générer une référence aléatoire de 5 chiffres
+    const reference = Math.floor(1000000 + Math.random() * 9000000).toString();
+
+    data.reference = reference; // Ajouter la référence aux données
     if (data.Photo) {
       // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
       if (typeof data.Photo === 'string') {
