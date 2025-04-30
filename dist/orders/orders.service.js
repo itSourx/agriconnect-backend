@@ -339,12 +339,11 @@ let OrdersService = class OrdersService {
     async loadImageAsBase64(imageUrl) {
         try {
             const response = await axios_1.default.get(imageUrl, { responseType: 'arraybuffer' });
-            const base64Image = buffer_1.Buffer.from(response.data).toString('base64');
-            return `data:image/jpeg;base64,${base64Image}`;
+            return `data:image/jpeg;base64,${buffer_1.Buffer.from(response.data).toString('base64')}`;
         }
         catch (error) {
-            console.error(`Erreur lors du téléchargement de l'image : ${imageUrl}`, error);
-            throw new Error(`Impossible de charger l'image : ${imageUrl}`);
+            console.error(`Image loading error: ${imageUrl}`, error);
+            return '';
         }
     }
     async generateInvoice(orderId) {
@@ -352,9 +351,10 @@ let OrdersService = class OrdersService {
         try {
             const existingOrder = await this.findOne(orderId);
             if (!existingOrder)
-                throw new Error('Commande introuvable.');
+                throw new Error('Order not found');
+            const copyrightText = `© ${new Date().getFullYear()} SOURX Ltd`;
             const orderDetails = existingOrder.fields;
-            const buyerName = orderDetails.buyerName || 'Client inconnu';
+            const buyerName = orderDetails.buyerName || 'Unknown Client';
             const buyerCompany = orderDetails.buyerCompany || '';
             const buyerPhone = orderDetails.buyerPhone || '';
             const buyerEmail = orderDetails.buyerEmail || '';
@@ -374,87 +374,128 @@ let OrdersService = class OrdersService {
                 });
             }
             if (normalizedProducts.length !== normalizedQuantities.length) {
-                throw new Error('Les données de la commande sont incohérentes.');
+                throw new Error('Inconsistent order data');
             }
-            const rawDate = orderDetails.createdAt;
-            const formattedDate = rawDate ? (0, date_fns_1.format)(new Date(rawDate), 'dd/MM/yyyy') : 'Date inconnue';
+            const formattedDate = orderDetails.createdAt
+                ? (0, date_fns_1.format)(new Date(orderDetails.createdAt), 'dd/MM/yyyy')
+                : 'Unknown date';
+            const taxRate = 0.20;
             let totalPrice = 0;
             let taxTotal = 0;
-            const taxRate = 0.20;
-            let previousCategory = '';
             const bodyRows = [];
+            const productsByCategory = {};
             for (let i = 0; i < normalizedProducts.length; i++) {
                 const productId = normalizedProducts[i];
                 const product = await this.productsService.findOne(productId);
-                const productName = product?.fields.Name || 'Produit inconnu';
-                const category = product?.fields.category || 'Catégorie inconnue';
-                const photoUrl = product?.fields.Photo?.[0]?.url || '';
-                const price = product?.fields.price || 0;
-                const quantity = normalizedQuantities[i];
-                const imageBase64 = photoUrl ? await this.loadImageAsBase64(photoUrl) : '';
-                const subtotalForProduct = price * quantity;
-                const taxForProduct = subtotalForProduct * taxRate;
-                totalPrice += subtotalForProduct;
-                taxTotal += taxForProduct;
-                const totalIncTax = subtotalForProduct + taxForProduct;
-                const productCell = {
-                    columns: [
+                const category = product?.fields.category || 'Uncategorized';
+                const productData = {
+                    productId,
+                    productName: product?.fields.Name || 'Unknown Product',
+                    photoUrl: product?.fields.Photo?.[0]?.url || '',
+                    price: product?.fields.price || 0,
+                    quantity: normalizedQuantities[i],
+                    category
+                };
+                if (!productsByCategory[category]) {
+                    productsByCategory[category] = [];
+                }
+                productsByCategory[category].push(productData);
+            }
+            for (const [category, products] of Object.entries(productsByCategory)) {
+                bodyRows.push([
+                    {
+                        text: category.toUpperCase(),
+                        colSpan: 6,
+                        style: 'categoryRow',
+                        margin: [0, 10, 0, 5]
+                    },
+                    '', '', '', '', ''
+                ]);
+                for (const product of products) {
+                    const imageBase64 = product.photoUrl ? await this.loadImageAsBase64(product.photoUrl) : '';
+                    const subtotalForProduct = product.price * product.quantity;
+                    const taxForProduct = subtotalForProduct * taxRate;
+                    const totalIncTax = subtotalForProduct + taxForProduct;
+                    totalPrice += subtotalForProduct;
+                    taxTotal += taxForProduct;
+                    bodyRows.push([
                         {
-                            image: imageBase64 || '',
-                            width: 30,
-                            height: 30,
-                            fit: [30, 30],
-                            ...(!imageBase64 && { text: ' ', italics: true, color: 'gray' })
+                            columns: [
+                                {
+                                    image: imageBase64 || '',
+                                    width: 30,
+                                    height: 30,
+                                    fit: [30, 30],
+                                    alignment: 'center',
+                                    margin: [0, 5, 0, 5],
+                                    ...(!imageBase64 && { text: ' ', italics: true })
+                                },
+                                {
+                                    stack: [
+                                        { text: product.productName, bold: true, margin: [10, 0, 0, 0] },
+                                        { text: `Ref: ${product.productId}`, fontSize: 8, color: '#666', margin: [10, 2, 0, 0] }
+                                    ],
+                                    margin: [10, 5, 0, 5],
+                                    width: '*'
+                                }
+                            ]
                         },
                         {
-                            stack: [
-                                { text: productName, bold: true },
-                                { text: category, fontSize: 10, color: 'gray' }
-                            ],
-                            margin: [10, 5, 0, 5],
-                            width: '*'
+                            text: product.quantity.toString(),
+                            alignment: 'center',
+                            margin: [0, 5, 0, 5]
+                        },
+                        {
+                            text: product.price.toString(),
+                            alignment: 'center',
+                            margin: [0, 5, 0, 5]
+                        },
+                        {
+                            text: subtotalForProduct.toFixed(2),
+                            alignment: 'center',
+                            margin: [0, 5, 0, 5]
+                        },
+                        {
+                            text: taxForProduct.toFixed(2),
+                            alignment: 'center',
+                            margin: [0, 5, 0, 5]
+                        },
+                        {
+                            text: totalIncTax.toFixed(2),
+                            alignment: 'center',
+                            margin: [0, 5, 0, 5]
                         }
-                    ]
-                };
-                bodyRows.push([
-                    productCell,
-                    quantity.toString(),
-                    `${price} FCFA`,
-                    `${subtotalForProduct.toFixed(2)} FCFA`,
-                    `${taxForProduct.toFixed(2)} FCFA`,
-                    `${totalIncTax.toFixed(2)} FCFA`
-                ]);
-            }
-            const logoUrl = 'https://sourx.com/wp-content/uploads/2023/08/logo-agriconnect.png';
-            let logoBase64 = '';
-            try {
-                logoBase64 = await this.loadImageAsBase64(logoUrl);
-            }
-            catch (error) {
-                console.error('Erreur lors du chargement du logo:', error);
+                    ]);
+                }
             }
             const totalWithTax = totalPrice + taxTotal;
+            const logoBase64 = await this.loadImageAsBase64('https://sourx.com/wp-content/uploads/2023/08/logo-agriconnect.png');
             const content = [];
-            content.push({
+            const header = {
                 columns: [
                     {
                         stack: [
-                            { text: 'SOURX LIMITED', style: 'header', margin: [0, 5, 0, 0] },
-                            { text: '71-75 Shelton Street Covent Garden', bold: true, margin: [0, 5, 0, 0] },
-                            { text: 'London WC2H 9JQ', bold: true, margin: [0, 0, 0, 0] },
-                            { text: 'VAT Registration No: 438434679', bold: true, margin: [0, 0, 0, 0] },
-                            { text: 'Registered in England No: 08828978', bold: true, margin: [0, 0, 0, 0] },
+                            { text: 'SOURX LIMITED', style: 'header', margin: [0, -5, 0, 2] },
+                            { text: '71-75 Shelton Street Covent Garden', margin: [0, 0, 0, 2] },
+                            { text: 'London WC2H 9JQ', margin: [0, 0, 0, 2] },
+                            { text: 'VAT Registration No: 438434679', margin: [0, 0, 0, 2] },
+                            { text: 'Registered in England No : 08828978', margin: [0, 0, 0, 0] }
                         ],
+                        width: '70%',
+                        margin: [0, 10, 0, 0],
                     },
                     {
-                        image: logoBase64 || 'Logo-AgriConnect',
-                        width: 100,
+                        image: logoBase64 || 'agriConnect',
+                        width: 120,
                         alignment: 'right',
-                        margin: [0, 0, 0, 10]
-                    },
+                        margin: [0, 0, 0, 0]
+                    }
                 ],
-            });
-            content.push({
+                columnGap: 20,
+                margin: [0, 0, 0, 30]
+            };
+            content.push(header);
+            const customerInfo = {
                 columns: [
                     {
                         stack: [
@@ -463,20 +504,16 @@ let OrdersService = class OrdersService {
                             { text: `Company: ${buyerCompany}`, margin: [0, 0, 0, 5] },
                             { text: `Phone: ${buyerPhone}`, margin: [0, 0, 0, 5] },
                             { text: `Email: ${buyerEmail}`, margin: [0, 0, 0, 5] },
-                            { text: `Address: ${buyerAddress}`, margin: [0, 0, 0, 5] },
+                            { text: `Address: ${buyerAddress}`, margin: [0, 0, 0, 5] }
                         ],
-                        width: '50%',
+                        width: '50%'
                     },
                     {
                         stack: [
-                            {
-                                text: 'Pro-Forma :',
-                                style: 'sectionHeader',
-                                alignment: 'right',
-                            },
+                            { text: 'Summary :', style: 'sectionHeader', alignment: 'right' },
                             {
                                 table: {
-                                    widths: ['*', '*'],
+                                    widths: ['auto', '*'],
                                     body: [
                                         [
                                             { text: 'Order number:', style: 'infoLabel' },
@@ -502,73 +539,101 @@ let OrdersService = class OrdersService {
                                     paddingTop: () => 5,
                                     paddingBottom: () => 5
                                 },
-                                margin: [0, 0, 0, 0],
-                                fillColor: '#b7ebbb'
+                                fillColor: '#F5F5F5',
+                                margin: [0, 10, 0, 0]
                             }
                         ],
-                        width: '50%',
+                        width: '50%'
                     }
                 ],
                 columnGap: 10,
-            });
-            content.push({ text: 'Product Details', style: 'sectionHeader' });
-            content.push({
+                margin: [0, 0, 0, 20]
+            };
+            content.push(customerInfo);
+            const productsTable = {
                 table: {
                     headerRows: 1,
                     widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
                     body: [
                         [
-                            { text: 'Product', style: 'tableHeader' },
-                            { text: 'Qty', style: 'tableHeader' },
-                            { text: 'Price', style: 'tableHeader' },
-                            { text: 'Total', style: 'tableHeader' },
-                            { text: 'Tax', style: 'tableHeader' },
-                            { text: 'Total(inc. tax)', style: 'tableHeader' },
+                            { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Qty', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Price', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Total', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Tax', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Total(inc. tax)', style: 'tableHeader', margin: [0, 5, 0, 5] }
                         ],
                         ...bodyRows
-                    ],
+                    ]
                 },
                 layout: 'headerLineOnly',
-                margin: [0, 10, 0, 5],
-            });
-            content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 595 - 40, y2: 0, lineWidth: 2 }] });
-            content.push({ text: `Subtotal: ${totalPrice.toFixed(2)} FCFA`, alignment: 'right', margin: [50, 5, 0, 0] });
-            content.push({ text: `Tax: ${taxTotal.toFixed(2)} FCFA`, alignment: 'right', margin: [0, 5, 0, 0] });
-            content.push({ text: `Total: ${totalWithTax.toFixed(2)} FCFA`, bold: true, alignment: 'right', margin: [0, 5, 0, 0] });
+                margin: [0, 0, 0, 20]
+            };
+            content.push(productsTable);
+            const totals = {
+                stack: [
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 555 - 40, y2: 0, lineWidth: 1 }] },
+                    { text: `Subtotal: ${totalPrice.toFixed(2)} FCFA`, alignment: 'right', margin: [5, 10, 0, 5] },
+                    { text: `Tax: ${taxTotal.toFixed(2)} FCFA`, alignment: 'right', margin: [0, 0, 0, 5] },
+                    { text: `Total: ${totalWithTax.toFixed(2)} FCFA`, bold: true, alignment: 'right', margin: [0, 0, 0, 10] }
+                ]
+            };
+            content.push(totals);
             const docDefinition = {
                 content,
                 footer: (currentPage, pageCount) => ({
-                    text: `Page ${currentPage} of ${pageCount} | Thank you for your purchase! All informations are protected by SOURX Ltd terms & policy.`,
+                    text: `Page ${currentPage} of ${pageCount} | Thank you for your purchase! ${copyrightText}`,
                     alignment: 'center',
-                    fontSize: 10,
-                    margin: [0, 0, 0, 20],
+                    fontSize: 9,
+                    margin: [10, 10, 0, 0]
                 }),
                 styles: {
-                    header: { fontSize: 25, bold: true, alignment: 'left', color: '#007BFF', margin: [0, 5, 0, 0] },
-                    sectionHeader: { fontSize: 16, bold: true, color: '#007BFF', margin: [0, 15, 0, 5] },
-                    tableHeader: { bold: true, fontSize: 13, color: '#007BFF' },
-                    infoLabel: {
+                    header: {
+                        fontSize: 18,
                         bold: true,
-                        color: '#555555',
-                        margin: [0, 3, 0, 3]
+                        color: '#009cdb',
+                        margin: [0, 0, 0, 10]
+                    },
+                    sectionHeader: {
+                        fontSize: 14,
+                        bold: true,
+                        color: '#8b6404',
+                        margin: [0, 0, 0, 10]
+                    },
+                    tableHeader: {
+                        bold: true,
+                        fontSize: 11,
+                        color: '#FFFFFF',
+                        fillColor: '#4CAF50',
+                        alignment: 'center'
+                    },
+                    categoryRow: {
+                        bold: true,
+                        fontSize: 12,
+                        color: '#FF9800',
+                        fillColor: '#F5F5F5',
+                        margin: [0, 5, 0, 10]
                     },
                     infoValue: {
                         alignment: 'right',
                         margin: [0, 3, 0, 3]
                     }
                 },
-                defaultStyle: { font: 'Roboto' },
+                defaultStyle: {
+                    font: 'Roboto',
+                    fontSize: 10
+                },
                 pageSize: 'A4',
-                pageMargins: [20, 20, 20, 50],
+                pageMargins: [40, 40, 40, 60]
             };
             return new Promise((resolve, reject) => {
                 pdfMake.createPdf(docDefinition).getBuffer((buffer) => {
-                    buffer ? resolve(buffer) : reject(new Error('Erreur lors de la génération du PDF.'));
+                    buffer ? resolve(buffer) : reject(new Error('PDF generation failed'));
                 });
             });
         }
         catch (error) {
-            console.error('Erreur lors de la génération de la facture :', error);
+            console.error('Invoice generation error:', error);
             throw error;
         }
     }
@@ -593,7 +658,7 @@ let OrdersService = class OrdersService {
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: buyerEmail,
-                subject: `Votre facture Pro-Forma - Commande #${orderNumber}`,
+                subject: `Votre facture - Commande #${orderNumber}`,
                 text: `Bonjour,\n\nVeuillez trouver ci-joint votre facture pour la commande #${orderNumber}.`,
                 attachments: [
                     {

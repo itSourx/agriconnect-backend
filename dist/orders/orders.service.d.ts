@@ -20,7 +20,7 @@ export declare class OrdersService {
     getOrdersByFarmer(farmerId: string): Promise<any>;
     getOrderPayments(orderId: string): Promise<any>;
     private loadPdfFonts;
-    loadImageAsBase64(imageUrl: string): Promise<string>;
+    private loadImageAsBase64;
     generateInvoice(orderId: string): Promise<Buffer>;
     sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void>;
 }
