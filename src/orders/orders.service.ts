@@ -11,26 +11,36 @@ import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 import { customFonts } from './custom-fonts'; // Importer les polices personnalisées
 import * as nodemailer from 'nodemailer';
 import { Buffer } from 'buffer';
-//import { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
+//import { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentTable, ContentImage, Table } from 'pdfmake/interfaces';
+
 dotenv.config();
+
 interface UpdatedFields {
   status: string;
   farmerPayments?: string; // Champ facultatif pour farmerPayments
 }
-// Définir les types pour pdfmake
-/*type TableCell = string | pdfMake.Content;
-interface ProductCell extends pdfMake.Content {
-  columns: pdfMake.Content[];
-}*/
-/*type TableCell = string | Content;
-interface ProductCell extends Content {
+// Définissez manuellement les types si nécessaire
+/*interface Content {
+  [key: string]: any;
+}
+interface ContentColumns extends Content {
   columns: Content[];
+}
+interface ContentStack extends Content {
+  stack: Content[];
+}
+interface ContentTable extends Content {
+  table: Table;
+}
+interface ContentImage extends Content {
+  image: string;
+  width?: number;
+  height?: number;
+}
+interface Table {
+  [key: string]: any;
 }*/
-/*type CustomContent = Content | { colSpan?: number };
-type ProductCellContent = {
-  columns: Array<ContentImage | ContentStack>;
-};*/
 type PdfCell = Content & { colSpan?: number };
 
 interface ProductData {

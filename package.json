@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "npm install @types/pdfmake --no-save && npm run build",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/main.js",
@@ -45,6 +46,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdfmake": "^0.2.7",
+    "canvas": "^2.11.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-jsdoc": "^6.2.8",
