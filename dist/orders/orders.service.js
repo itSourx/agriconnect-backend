@@ -409,7 +409,11 @@ let OrdersService = class OrdersService {
                         style: 'categoryRow',
                         margin: [0, 10, 0, 5]
                     },
-                    '', '', '', '', ''
+                    { text: '' },
+                    { text: '' },
+                    { text: '' },
+                    { text: '' },
+                    { text: '' }
                 ]);
                 for (const product of products) {
                     const imageBase64 = product.photoUrl ? await this.loadImageAsBase64(product.photoUrl) : '';
@@ -613,6 +617,10 @@ let OrdersService = class OrdersService {
                         color: '#FF9800',
                         fillColor: '#F5F5F5',
                         margin: [0, 5, 0, 10]
+                    },
+                    infoLabel: {
+                        bold: true,
+                        margin: [0, 3, 0, 3]
                     },
                     infoValue: {
                         alignment: 'right',

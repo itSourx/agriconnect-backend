@@ -8,11 +8,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as pdfMake from 'pdfmake/build/pdfmake';
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
-import { customFonts } from './custom-fonts'; // Importer les polices personnalisées
+//import { customFonts } from './custom-fonts'; // Importer les polices personnalisées
 import * as nodemailer from 'nodemailer';
 import { Buffer } from 'buffer';
 //import { TDocumentDefinitions } from 'pdfmake/interfaces';
-import { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentTable, ContentImage, Table } from 'pdfmake/interfaces';
+//import { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentTable, ContentImage, Table } from 'pdfmake/interfaces';
 
 dotenv.config();
 
@@ -41,7 +41,53 @@ interface ContentImage extends Content {
 interface Table {
   [key: string]: any;
 }*/
-type PdfCell = Content & { colSpan?: number };
+//type PdfCell = Content & { colSpan?: number };
+
+// Déclaration manuelle des types nécessaires
+interface Content {
+  text?: string;
+  style?: string;
+  margin?: number[];
+  alignment?: string;
+  bold?: boolean;
+  fontSize?: number;
+  color?: string;
+  fillColor?: string;
+  colSpan?: number;
+  stack?: Content[];
+  columns?: Content[];
+  table?: Table;
+  image?: string;
+  width?: number | string; // Modification ici pour accepter string ('50%', 'auto', etc.)
+  height?: number;
+  fit?: number[];
+  canvas?: any[];
+  [key: string]: any;
+}
+
+interface Table {
+  widths?: any[];
+  heights?: any[];
+  body?: any[][];
+  headerRows?: number;
+  dontBreakRows?: boolean;
+  keepWithHeaderRows?: number;
+}
+
+interface TDocumentDefinitions {
+  content: Content[];
+  styles?: { [key: string]: Content };
+  defaultStyle?: Content;
+  pageSize?: string;
+  pageMargins?: number[];
+  footer?: (currentPage: number, pageCount: number) => Content;
+}
+
+type PdfCell = Content;
+type ContentColumns = Content;
+type ContentStack = Content;
+type ContentTable = Content;
+type ContentImage = Content;
 
 interface ProductData {
   productId: string;
@@ -528,18 +574,8 @@ async getOrderPayments(orderId: string): Promise<any> {
       return '';
     }
   }
-  /*async loadImageAsBase64(imageUrl: string): Promise<string> {
-    try {
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const base64Image = Buffer.from(response.data).toString('base64');
-      return `data:image/jpeg;base64,${base64Image}`;
-    } catch (error) {
-      console.error(`Erreur lors du téléchargement de l'image : ${imageUrl}`, error);
-      throw new Error(`Impossible de charger l'image : ${imageUrl}`);
-    }
-  }*/
 
-    async generateInvoice(orderId: string): Promise<Buffer> {
+    /*async generateInvoice(orderId: string): Promise<Buffer> {
       this.loadPdfFonts();
   
       try {
@@ -748,10 +784,6 @@ async getOrderPayments(orderId: string): Promise<any> {
                   table: {
                     widths: ['auto', '*'],
                     body: [
-                      /*['Order number:', orderNumber],
-                      ['Date:', formattedDate],
-                      ['Amount:', `${totalWithTax.toFixed(2)} FCFA`],
-                      ['Customer Ref.:', customerRef]*/
                       [
                         { text: 'Order number:', style: 'infoLabel' },
                         { text: orderNumber, style: 'infoValue' }
@@ -882,8 +914,345 @@ async getOrderPayments(orderId: string): Promise<any> {
         console.error('Invoice generation error:', error);
         throw error;
       }
-    }
-  
+    }*/
+      async generateInvoice(orderId: string): Promise<Buffer> {
+        this.loadPdfFonts();
+    
+        try {
+          // Récupération des données de la commande
+          const existingOrder = await this.findOne(orderId);
+          if (!existingOrder) throw new Error('Order not found');
+          const copyrightText = `© ${new Date().getFullYear()} SOURX Ltd`;
+    
+          const orderDetails = existingOrder.fields;
+          const buyerName = orderDetails.buyerName || 'Unknown Client';
+          const buyerCompany = orderDetails.buyerCompany || '';
+          const buyerPhone = orderDetails.buyerPhone || '';
+          const buyerEmail = orderDetails.buyerEmail || '';
+          const buyerAddress = orderDetails.buyerAddress || '';
+          const orderNumber = orderDetails.orderNumber || 'N/A';
+          const customerRef = orderDetails.customerRef || 'N/A';
+          const products = orderDetails.products || [];
+          const quantities = orderDetails.Qty || [];
+    
+          // Normalisation des données
+          const normalizedProducts = Array.isArray(products) ? products : [products];
+          let normalizedQuantities = Array.isArray(quantities) 
+            ? quantities.map(Number) 
+            : [Number(quantities)];
+    
+          if (typeof quantities === 'string') {
+            normalizedQuantities = quantities.split(',').map(qty => {
+              const parsedQty = Number(qty.trim());
+              return isNaN(parsedQty) ? 0 : parsedQty;
+            });
+          }
+    
+          if (normalizedProducts.length !== normalizedQuantities.length) {
+            throw new Error('Inconsistent order data');
+          }
+    
+          // Formatage de la date
+          const formattedDate = orderDetails.createdAt 
+            ? format(new Date(orderDetails.createdAt), 'dd/MM/yyyy') 
+            : 'Unknown date';
+    
+          // Calcul des totaux et regroupement par catégorie
+          const taxRate = 0.20;
+          let totalPrice = 0;
+          let taxTotal = 0;
+          const bodyRows: PdfCell[][] = [];
+          const productsByCategory: Record<string, ProductData[]> = {};
+    
+          // 1. Regroupement des produits par catégorie
+          for (let i = 0; i < normalizedProducts.length; i++) {
+            const productId = normalizedProducts[i];
+            const product = await this.productsService.findOne(productId);
+            const category = product?.fields.category || 'Uncategorized';
+            const productData: ProductData = {
+              productId,
+              productName: product?.fields.Name || 'Unknown Product',
+              photoUrl: product?.fields.Photo?.[0]?.url || '',
+              price: product?.fields.price || 0,
+              quantity: normalizedQuantities[i],
+              category
+            };
+    
+            if (!productsByCategory[category]) {
+              productsByCategory[category] = [];
+            }
+            productsByCategory[category].push(productData);
+          }
+    
+          // 2. Construction des lignes du tableau par catégorie
+          for (const [category, products] of Object.entries(productsByCategory)) {
+            // Ligne d'en-tête de catégorie
+            bodyRows.push([
+              { 
+                text: category.toUpperCase(), 
+                colSpan: 6,
+                style: 'categoryRow',
+                margin: [0, 10, 0, 5]
+              },
+              { text: '' }, 
+              { text: '' },
+              { text: '' },
+              { text: '' },
+              { text: '' }
+            ]);
+    
+            // Lignes de produits pour cette catégorie
+            for (const product of products) {
+              const imageBase64 = product.photoUrl ? await this.loadImageAsBase64(product.photoUrl) : '';
+              const subtotalForProduct = product.price * product.quantity;
+              const taxForProduct = subtotalForProduct * taxRate;
+              const totalIncTax = subtotalForProduct + taxForProduct;
+    
+              totalPrice += subtotalForProduct;
+              taxTotal += taxForProduct;
+    
+              bodyRows.push([
+                {
+                  columns: [
+                    { 
+                      image: imageBase64 || '',
+                      width: 30,
+                      height: 30,
+                      fit: [30, 30],
+                      alignment: 'center',
+                      margin: [0, 5, 0, 5],
+                      ...(!imageBase64 && { text: ' ', italics: true })
+                    },
+                    { 
+                      stack: [
+                        { text: product.productName, bold: true, margin: [10, 0, 0, 0] },
+                        { text: `Ref: ${product.productId}`, fontSize: 8, color: '#666', margin: [10, 2, 0, 0] }
+                      ],
+                      margin: [10, 5, 0, 5],
+                      width: '*'
+                    }
+                  ]
+                },
+                { 
+                  text: product.quantity.toString(), 
+                  alignment: 'center',
+                  margin: [0, 5, 0, 5] 
+                },
+                { 
+                  text: product.price.toString(), 
+                  alignment: 'center',
+                  margin: [0, 5, 0, 5] 
+                },
+                { 
+                  text: subtotalForProduct.toFixed(2), 
+                  alignment: 'center',
+                  margin: [0, 5, 0, 5] 
+                },
+                { 
+                  text: taxForProduct.toFixed(2), 
+                  alignment: 'center',
+                  margin: [0, 5, 0, 5] 
+                },
+                { 
+                  text: totalIncTax.toFixed(2), 
+                  alignment: 'center',
+                  margin: [0, 5, 0, 5] 
+                }
+              ]);
+            }
+          }
+    
+          const totalWithTax = totalPrice + taxTotal;
+    
+          // Chargement du logo
+          const logoBase64 = await this.loadImageAsBase64(
+            'https://sourx.com/wp-content/uploads/2023/08/logo-agriconnect.png'
+          );
+    
+          // Construction du contenu PDF
+          const content: Content[] = [];
+    
+          // 1. En-tête
+          const header: ContentColumns = {
+            columns: [
+              {
+                stack: [
+                  { text: 'SOURX LIMITED', style: 'header', margin: [0, -5, 0, 2] },
+                  { text: '71-75 Shelton Street Covent Garden', margin: [0, 0, 0, 2] },
+                  { text: 'London WC2H 9JQ', margin: [0, 0, 0, 2] },
+                  { text: 'VAT Registration No: 438434679', margin: [0, 0, 0, 2] },
+                  { text: 'Registered in England No : 08828978', margin: [0, 0, 0, 0] }
+                ],
+                width: '70%',
+                margin: [0, 10, 0, 0],
+              },
+              {
+                image: logoBase64 || 'agriConnect',
+                width: 120,
+                alignment: 'right',
+                margin: [0, 0, 0, 0]
+              }
+            ],
+            columnGap: 20,
+            margin: [0, 0, 0, 30]
+          };
+          content.push(header);
+    
+          // 2. Informations client/commande
+          const customerInfo: ContentColumns = {
+            columns: [
+              {
+                stack: [
+                  { text: 'Customer info:', style: 'sectionHeader' },
+                  { text: `Name: ${buyerName}`, margin: [0, 0, 0, 5] },
+                  { text: `Company: ${buyerCompany}`, margin: [0, 0, 0, 5] },
+                  { text: `Phone: ${buyerPhone}`, margin: [0, 0, 0, 5] },
+                  { text: `Email: ${buyerEmail}`, margin: [0, 0, 0, 5] },
+                  { text: `Address: ${buyerAddress}`, margin: [0, 0, 0, 5] }
+                ],
+                width: '50%'
+              },
+              {
+                stack: [
+                  { text: 'Summary :', style: 'sectionHeader', alignment: 'right' },
+                  { 
+                    table: {
+                      widths: ['auto', '*'],
+                      body: [
+                        [
+                          { text: 'Order number:', style: 'infoLabel' },
+                          { text: orderNumber, style: 'infoValue' }
+                        ],
+                        [
+                          { text: 'Date:', style: 'infoLabel' },
+                          { text: formattedDate, style: 'infoValue' }
+                        ],
+                        [
+                          { text: 'Amount:', style: 'infoLabel' },
+                          { text: `${totalWithTax.toFixed(2)} FCFA`, style: 'infoValue' }
+                        ],
+                        [
+                          { text: 'Customer Ref.:', style: 'infoLabel' },
+                          { text: customerRef, style: 'infoValue' }
+                        ]
+                      ]
+                    },
+                    layout: {
+                      hLineWidth: () => 0,
+                      vLineWidth: () => 0,
+                      paddingTop: () => 5,
+                      paddingBottom: () => 5
+                    },
+                    fillColor: '#F5F5F5',
+                    margin: [0, 10, 0, 0]
+                  }
+                ],
+                width: '50%'
+              }
+            ],
+            columnGap: 10,
+            margin: [0, 0, 0, 20]
+          };
+          content.push(customerInfo);
+    
+          // 3. Tableau des produits
+          const productsTable: ContentTable = {
+            table: {
+              headerRows: 1,
+              widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+              body: [
+                [
+                  { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Qty', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Price', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Total', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Tax', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Total(inc. tax)', style: 'tableHeader', margin: [0, 5, 0, 5] }
+                ],
+                ...bodyRows
+              ]
+            },
+            layout: 'headerLineOnly',
+            margin: [0, 0, 0, 20]
+          };
+          content.push(productsTable);
+    
+          // 4. Totaux
+          const totals: ContentStack = {
+            stack: [
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 555 - 40, y2: 0, lineWidth: 1 }] },
+              { text: `Subtotal: ${totalPrice.toFixed(2)} FCFA`, alignment: 'right', margin: [5, 10, 0, 5] },
+              { text: `Tax: ${taxTotal.toFixed(2)} FCFA`, alignment: 'right', margin: [0, 0, 0, 5] },
+              { text: `Total: ${totalWithTax.toFixed(2)} FCFA`, bold: true, alignment: 'right', margin: [0, 0, 0, 10] }
+            ]
+          };
+          content.push(totals);
+    
+          // Définition du document
+          const docDefinition: TDocumentDefinitions = {
+            content,
+            footer: (currentPage: number, pageCount: number) => ({
+              text: `Page ${currentPage} of ${pageCount} | Thank you for your purchase! ${copyrightText}`,
+              alignment: 'center',
+              fontSize: 9,
+              margin: [10, 10, 0, 0]
+            }),
+            styles: {
+              header: {
+                fontSize: 18,
+                bold: true,
+                color: '#009cdb',
+                margin: [0, 0, 0, 10]
+              },
+              sectionHeader: {
+                fontSize: 14,
+                bold: true,
+                color: '#8b6404',
+                margin: [0, 0, 0, 10]
+              },
+              tableHeader: {
+                bold: true,
+                fontSize: 11,
+                color: '#FFFFFF',
+                fillColor: '#4CAF50',
+                alignment: 'center'
+              },
+              categoryRow: {
+                bold: true,
+                fontSize: 12,
+                color: '#FF9800',
+                fillColor: '#F5F5F5',
+                margin: [0, 5, 0, 10]
+              },
+              infoLabel: {
+                bold: true,
+                margin: [0, 3, 0, 3]
+              },
+              infoValue: {
+                alignment: 'right',
+                margin: [0, 3, 0, 3]
+              }
+            },
+            defaultStyle: {
+              font: 'Roboto',
+              fontSize: 10
+            },
+            pageSize: 'A4',
+            pageMargins: [40, 40, 40, 60]
+          };
+    
+          // Génération du PDF
+          return new Promise((resolve, reject) => {
+            (pdfMake as any).createPdf(docDefinition).getBuffer((buffer: Buffer) => {
+              buffer ? resolve(buffer) : reject(new Error('PDF generation failed'));
+            });
+          });
+    
+        } catch (error) {
+          console.error('Invoice generation error:', error);
+          throw error;
+        }
+      }
        
       
   //Méthode pour envoyer l'e-mail avec la pièce jointe.
