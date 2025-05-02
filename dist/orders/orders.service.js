@@ -334,7 +334,10 @@ let OrdersService = class OrdersService {
         }
     }
     loadPdfFonts() {
-        pdfMake.vfs = pdfFonts.pdfMake.vfs;
+        const fontFiles = {
+            ...pdfFonts.pdfMake?.vfs,
+        };
+        pdfMake.vfs = fontFiles;
     }
     async loadImageAsBase64(imageUrl) {
         try {

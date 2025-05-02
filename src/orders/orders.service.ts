@@ -563,7 +563,14 @@ async getOrderPayments(orderId: string): Promise<any> {
 }
   private loadPdfFonts() {
     // Assigner explicitement les polices à pdfMake
-    (pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+    //(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+      // Fusion des polices (officielles + personnalisées)
+      const fontFiles = {
+        ...(pdfFonts as any).pdfMake?.vfs,  // Polices intégrées
+        // ...vosPolicesPersonnalisées       // Ajoutez ici vos polices
+      };
+      
+      (pdfMake as any).vfs = fontFiles;
   }
   private async loadImageAsBase64(imageUrl: string): Promise<string> {
     try {
