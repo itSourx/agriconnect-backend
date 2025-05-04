@@ -83,8 +83,22 @@ let OrdersService = class OrdersService {
             formattedData.orderNumber = orderNumber;
             console.log('Données formatées pour Airtable :', formattedData);
             const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
-            console.log('Commande créée avec succès :', response.data);
-            return response.data.records[0];
+            const createdOrder = response.data.records[0];
+            const orderId = createdOrder.id;
+            const buyerEmail = createdOrder.fields.buyerEmail;
+            if (buyerEmail) {
+                try {
+                    await this.sendInvoiceByEmail(orderId, buyerEmail);
+                    console.log('Email de facture envoyé avec succès à', buyerEmail);
+                }
+                catch (emailError) {
+                    console.error("Erreur lors de l'envoi de l'email de facture:", emailError);
+                }
+            }
+            else {
+                console.warn("Aucun email d'acheteur fourni, l'email de facture ne sera pas envoyé");
+            }
+            return createdOrder;
         }
         catch (error) {
             console.error('Erreur lors de la création de la commande :', error.response?.data || error.message);
@@ -292,7 +306,8 @@ let OrdersService = class OrdersService {
                     const formattedStatusDate = rawStatusDate ? (0, date_fns_1.format)(new Date(rawStatusDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
                     farmerOrders.push({
                         orderId,
-                        buyer: fields.buyerName,
+                        buyerName: fields.buyerName,
+                        buyerEmail: fields.buyerEmail,
                         totalAmount: farmerPayment.totalAmount,
                         status: fields.status,
                         createdDate: formattedDate,
@@ -382,7 +397,7 @@ let OrdersService = class OrdersService {
             const formattedDate = orderDetails.createdAt
                 ? (0, date_fns_1.format)(new Date(orderDetails.createdAt), 'dd/MM/yyyy')
                 : 'Unknown date';
-            const taxRate = 0.20;
+            const taxRate = 0.18;
             let totalPrice = 0;
             let taxTotal = 0;
             const bodyRows = [];
@@ -563,7 +578,7 @@ let OrdersService = class OrdersService {
                     widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
                     body: [
                         [
-                            { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                            { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 0] },
                             { text: 'Qty', style: 'tableHeader', margin: [0, 5, 0, 5] },
                             { text: 'Price', style: 'tableHeader', margin: [0, 5, 0, 5] },
                             { text: 'Total', style: 'tableHeader', margin: [0, 5, 0, 5] },
@@ -574,7 +589,7 @@ let OrdersService = class OrdersService {
                     ]
                 },
                 layout: 'headerLineOnly',
-                margin: [0, 0, 0, 20]
+                margin: [0, 0, 0, 10]
             };
             content.push(productsTable);
             const totals = {
@@ -683,6 +698,115 @@ let OrdersService = class OrdersService {
         }
         catch (error) {
             console.error('Erreur lors de l\'envoi de la facture par e-mail :', error.message);
+            throw error;
+        }
+    }
+    async getFarmerClients(farmerId) {
+        try {
+            const farmerOrders = await this.getOrdersByFarmer(farmerId);
+            console.log('Commandes récupérées pour l\'agriculteur :', JSON.stringify(farmerOrders, null, 2));
+            const clientStats = new Map();
+            for (const order of farmerOrders) {
+                console.log(`Traitement de la commande :`, order);
+                if (!order || !Array.isArray(order.buyerName) || !Array.isArray(order.buyerEmail)) {
+                    console.warn('Commande invalide ignorée :', order);
+                    continue;
+                }
+                const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
+                const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
+                const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
+                console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
+                if (buyerName && buyerEmail) {
+                    if (clientStats.has(buyerEmail)) {
+                        const client = clientStats.get(buyerEmail);
+                        client.orderCount += 1;
+                        client.totalSpent += totalAmount;
+                        for (const productItem of order.products) {
+                            const productId = productItem.productId;
+                            const productName = productItem.lib;
+                            const productCategory = productItem.category;
+                            const productMesure = productItem.mesure;
+                            const productQuantity = productItem.quantity;
+                            const productPrice = productItem.price;
+                            const productTotal = productItem.total;
+                            const foundProduct = await this.productsService.findOne(productId);
+                            if (foundProduct.fields.farmerId.includes(farmerId)) {
+                                if (!client.products[productName]) {
+                                    client.products[productName] = {
+                                        productId,
+                                        category: productCategory,
+                                        totalQuantity: 0,
+                                        totalSpent: 0,
+                                        purchaseCount: 0,
+                                    };
+                                }
+                                client.products[productName].totalQuantity += productQuantity;
+                                client.products[productName].totalSpent += productTotal;
+                                client.products[productName].purchaseCount += 1;
+                            }
+                        }
+                        if (!client.firstOrderDate || new Date(order.createdDate) < new Date(client.firstOrderDate)) {
+                            client.firstOrderDate = order.createdDate;
+                        }
+                        if (!client.lastOrderDate || new Date(order.statusDate) > new Date(client.lastOrderDate)) {
+                            client.lastOrderDate = order.createdDate;
+                        }
+                        if (order.status === 'pending') {
+                            client.statusDistribution.pending += 1;
+                        }
+                        else if (order.status === 'confirmed') {
+                            client.statusDistribution.confirmed += 1;
+                        }
+                        else if (order.status === 'delivered') {
+                            client.statusDistribution.delivered += 1;
+                        }
+                        else if (order.status === 'completed') {
+                            client.statusDistribution.completed += 1;
+                        }
+                    }
+                    else {
+                        const products = {};
+                        for (const productItem of order.products) {
+                            const productId = productItem.productId;
+                            const productName = productItem.lib;
+                            const productCategory = productItem.category;
+                            const productMesure = productItem.mesure;
+                            const productQuantity = productItem.quantity;
+                            const productPrice = productItem.price;
+                            const productTotal = productItem.total;
+                            const foundProduct = await this.productsService.findOne(productId);
+                            if (foundProduct.fields.farmerId.includes(farmerId)) {
+                                products[productName] = {
+                                    productId,
+                                    category: productCategory,
+                                    totalQuantity: productQuantity,
+                                    totalSpent: productTotal,
+                                    purchaseCount: 1,
+                                };
+                            }
+                        }
+                        clientStats.set(buyerEmail, {
+                            buyerName,
+                            buyerEmail,
+                            orderCount: 1,
+                            totalSpent: totalAmount,
+                            firstOrderDate: order.createdDate,
+                            lastOrderDate: order.createdDate,
+                            products: products,
+                            statusDistribution: {
+                                pending: order.status === 'pending' ? 1 : 0,
+                                confirmed: order.status === 'confirmed' ? 1 : 0,
+                                delivered: order.status === 'delivered' ? 1 : 0,
+                                completed: order.status === 'completed' ? 1 : 0,
+                            },
+                        });
+                    }
+                }
+            }
+            return Array.from(clientStats.values());
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
             throw error;
         }
     }

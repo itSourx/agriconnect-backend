@@ -23,4 +23,5 @@ export declare class OrdersService {
     private loadImageAsBase64;
     generateInvoice(orderId: string): Promise<Buffer>;
     sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void>;
+    getFarmerClients(farmerId: string): Promise<any>;
 }

@@ -219,5 +219,18 @@ async sendInvoice(@Param('id') orderId: string) {
     console.error('Erreur lors de l\'envoi de la facture :', error.message);
     throw Error; //(`Erreur lors de l'envoi de la facture : ${error.message}`);
   }
-}
+  }
+  
+  @Get('getFarmerClients/:farmerId')
+  @UseGuards(AuthGuard)
+  async getFarmerClients(@Param('farmerId') farmerId: string) {
+    try {
+      // Appeler le service pour récupérer les clients de l'agriculteur
+      const clients = await this.ordersService.getFarmerClients(farmerId);
+      return clients;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
+      throw error; // Propager l'erreur telle quelle
+    }
+  }
 }

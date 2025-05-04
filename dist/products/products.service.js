@@ -235,6 +235,20 @@ let ProductsService = class ProductsService {
             throw error;
         }
     }
+    async findByFarmer(farmerId) {
+        try {
+            const allProducts = await this.findAll();
+            const farmerProducts = allProducts.filter(product => {
+                const farmerIds = product.fields.farmerId;
+                return Array.isArray(farmerIds) && farmerIds.includes(farmerId);
+            });
+            return farmerProducts;
+        }
+        catch (error) {
+            console.error('Erreur lors de la recherche des produits par agriculteur :', error.message);
+            throw error;
+        }
+    }
 };
 exports.ProductsService = ProductsService;
 exports.ProductsService = ProductsService = __decorate([

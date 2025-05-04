@@ -7,4 +7,5 @@ export declare class CreateProductDto {
     mesure: string;
     email: string;
     Photo: string[];
+    Gallery: string[];
 }

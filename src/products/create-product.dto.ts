@@ -62,5 +62,9 @@ export class CreateProductDto {
   @IsArray()
   @IsString({ each: true })
   Photo: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  Gallery: string[];
 }
 

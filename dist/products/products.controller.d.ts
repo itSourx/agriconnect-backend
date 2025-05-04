@@ -4,6 +4,7 @@ export declare class ProductsController {
     private readonly productsService;
     constructor(productsService: ProductsService);
     findAll(): Promise<any[]>;
+    findByFarmer(id: string): Promise<any[]>;
     findAllByCategory(category: string): Promise<any[]>;
     search(query: string): Promise<any[]>;
     findOne(id: string): Promise<any>;

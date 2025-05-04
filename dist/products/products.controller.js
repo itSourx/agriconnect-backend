@@ -27,6 +27,9 @@ let ProductsController = class ProductsController {
     async findAll() {
         return this.productsService.findAll();
     }
+    async findByFarmer(id) {
+        return this.productsService.findByFarmer(id);
+    }
     async findAllByCategory(category) {
         return this.productsService.findAllByCategory(category);
     }
@@ -69,6 +72,14 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('findByFarmer/:id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ProductsController.prototype, "findByFarmer", null);
 __decorate([
     (0, common_1.Get)('by-category/:category'),
     __param(0, (0, common_1.Param)('category')),
@@ -174,10 +185,10 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "update", null);
 __decorate([
-    (0, common_1.Put)('update-photo'),
+    (0, common_1.Put)('upload/:productId'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('photos', 10, multer_config_1.multerOptions)),
     (0, swagger_1.ApiConsumes)('multipart/form-data'),
-    __param(0, (0, common_1.Body)('productId')),
+    __param(0, (0, common_1.Param)('productId')),
     __param(1, (0, common_1.UploadedFiles)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),

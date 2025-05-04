@@ -21,6 +21,14 @@ export class ProductsController {
   async findAll() {
     return this.productsService.findAll();
   }
+
+    // Endpoint pour récupérer tous les produits d'un agriculteur
+    @Get('findByFarmer/:id')
+    @UseGuards(AuthGuard)
+    async findByFarmer(@Param('id') id: string): Promise<any[]> {
+      return this.productsService.findByFarmer(id);
+    }
+    
   // Endpoint pour récupérer tous les produits par type
   @Get('by-category/:category')
   async findAllByCategory(@Param('category') category: string): Promise<any[]> {
@@ -115,7 +123,6 @@ export class ProductsController {
     @Body() CreateProductDto: CreateProductDto,
     @UploadedFiles() files: Express.Multer.File[], 
     //@UploadedFiles() files: Multer.File[], // Modification ici
-
     @Request() req) {
 
     console.log('Utilisateur connecté :', req.user);
@@ -142,18 +149,20 @@ export class ProductsController {
   async update(@Param('id') id: string, @Body() data: any) {
     return this.productsService.update(id, data);
   }
-@Put('update-photo')
-//@UseInterceptors(FileInterceptor('photo'))
-@UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData
-@ApiConsumes('multipart/form-data')
-async updatePhoto(
-  @Body('productId') productId: string,
-  //@UploadedFile() photo: Express.Multer.File,
-  @UploadedFiles() photo: Express.Multer.File, 
+  
+  @Put('upload/:productId')
+  //@UseInterceptors(FileInterceptor('photo'))
+  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData
+  @ApiConsumes('multipart/form-data')
+  async updatePhoto(
+    //@Body('productId') productId: string,
+      @Param('productId') productId: string,
+    //@UploadedFile() photo: Express.Multer.File,
+    @UploadedFiles() photo: Express.Multer.File, 
 
-) {
-  return this.productsService.updatePhoto(productId, photo);
-}
+  ) {
+    return this.productsService.updatePhoto(productId, photo);
+  }
 
   @Delete(':id')
   @UseGuards(AuthGuard)

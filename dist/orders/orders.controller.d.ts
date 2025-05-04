@@ -31,4 +31,5 @@ export declare class OrdersController {
             email: any;
         };
     }>;
+    getFarmerClients(farmerId: string): Promise<any>;
 }

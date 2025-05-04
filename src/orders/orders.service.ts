@@ -190,11 +190,25 @@ export class OrdersService {
             { records: [{ fields: formattedData }] },
             { headers: this.getHeaders() }
           );
-      // Appel de ta fonction sendMail avec l'email comme paramètre
-      //this.sendInvoiceByEmail(data.email);
 
-          console.log('Commande créée avec succès :', response.data);
-          return response.data.records[0];
+        // Récupérer l'ID de la commande créée et l'email de l'acheteur
+        const createdOrder = response.data.records[0];
+        const orderId = createdOrder.id;
+        const buyerEmail = createdOrder.fields.buyerEmail; 
+
+        // Envoyer la facture par email
+        if (buyerEmail) {
+          try {
+              await this.sendInvoiceByEmail(orderId, buyerEmail);
+              console.log('Email de facture envoyé avec succès à', buyerEmail);
+          } catch (emailError) {
+              console.error("Erreur lors de l'envoi de l'email de facture:", emailError);
+          }
+      } else {
+          console.warn("Aucun email d'acheteur fourni, l'email de facture ne sera pas envoyé");
+      }
+          //console.log('Commande créée avec succès :', response.data);
+          return createdOrder; //response.data.records[0];
         } catch (error) {
           console.error('Erreur lors de la création de la commande :', error.response?.data || error.message);
           throw error; //('Impossible de créer la commande.');
@@ -477,7 +491,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       totalProducts: number;
       createdDate: string;
       statusDate: string;
-      buyer: string;
+      buyerName: string;
+      buyerEmail: string;
       products: any[];
     };
 
@@ -512,7 +527,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         // Ajouter les détails de la commande pour cet agriculteur
         farmerOrders.push({
           orderId,
-          buyer: fields.buyerName,
+          buyerName: fields.buyerName,
+          buyerEmail: fields.buyerEmail,
           totalAmount: farmerPayment.totalAmount,
           status: fields.status,
           createdDate: formattedDate,
@@ -564,6 +580,7 @@ async getOrderPayments(orderId: string): Promise<any> {
   private loadPdfFonts() {
     // Assigner explicitement les polices à pdfMake
     //(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+
       // Fusion des polices (officielles + personnalisées)
       const fontFiles = {
         ...(pdfFonts as any).pdfMake?.vfs,  // Polices intégrées
@@ -965,7 +982,7 @@ async getOrderPayments(orderId: string): Promise<any> {
             : 'Unknown date';
     
           // Calcul des totaux et regroupement par catégorie
-          const taxRate = 0.20;
+          const taxRate = 0.18;
           let totalPrice = 0;
           let taxTotal = 0;
           const bodyRows: PdfCell[][] = [];
@@ -1169,7 +1186,7 @@ async getOrderPayments(orderId: string): Promise<any> {
               widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
               body: [
                 [
-                  { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 5] },
+                  { text: 'Product', style: 'tableHeader', margin: [0, 5, 0, 0] },
                   { text: 'Qty', style: 'tableHeader', margin: [0, 5, 0, 5] },
                   { text: 'Price', style: 'tableHeader', margin: [0, 5, 0, 5] },
                   { text: 'Total', style: 'tableHeader', margin: [0, 5, 0, 5] },
@@ -1180,7 +1197,7 @@ async getOrderPayments(orderId: string): Promise<any> {
               ]
             },
             layout: 'headerLineOnly',
-            margin: [0, 0, 0, 20]
+            margin: [0, 0, 0, 10]
           };
           content.push(productsTable);
     
@@ -1309,4 +1326,196 @@ async getOrderPayments(orderId: string): Promise<any> {
       throw error;
     }
   }
-}
+
+  // Méthode pour extraire les clients uniques à partir des commandes retournées par getOrdersByFarmer()
+  /*async getFarmerClients(farmerId: string): Promise<any> {
+    try {
+      // Récupérer les commandes de l'agriculteur
+      const farmerOrders = await this.getOrdersByFarmer(farmerId);
+  
+      console.log('Commandes récupérées pour l\'agriculteur :', JSON.stringify(farmerOrders, null, 2));
+  
+      // Initialiser une Map pour stocker les clients et leurs statistiques
+      const clientStats = new Map();
+  
+      farmerOrders.forEach((order, index) => {
+        console.log(`Traitement de la commande #${index + 1} :`, order);
+  
+        // Vérifier que l'ordre et ses champs existent
+        if (!order || !Array.isArray(order.buyerName) || !Array.isArray(order.buyerEmail)) {
+          console.warn('Commande invalide ignorée :', order);
+          return;
+        }
+  
+        const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
+        const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
+        const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
+  
+        console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
+  
+        if (buyerName && buyerEmail) {
+          // Si le client existe déjà dans la Map, incrémenter son compteur de commandes et cumuler le montant
+          if (clientStats.has(buyerEmail)) {
+            const client = clientStats.get(buyerEmail);
+            client.orderCount += 1;
+            client.totalSpent += totalAmount;
+          } else {
+            // Sinon, ajouter le client avec un compteur initialisé à 1 et le montant initial
+            clientStats.set(buyerEmail, {
+              buyerName,
+              buyerEmail,
+              orderCount: 1,
+              totalSpent: totalAmount,
+            });
+          }
+        }
+      });
+  
+      // Convertir la Map en tableau avant de retourner les données
+      return Array.from(clientStats.values());
+    } catch (error) {
+      console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
+      throw error; // Propager l'erreur telle quelle
+    }
+  }*/
+
+    async getFarmerClients(farmerId: string): Promise<any> {
+      try {
+        // Récupérer les commandes de l'agriculteur
+        const farmerOrders = await this.getOrdersByFarmer(farmerId);
+    
+        console.log('Commandes récupérées pour l\'agriculteur :', JSON.stringify(farmerOrders, null, 2));
+    
+        // Initialiser une Map pour stocker les clients et leurs statistiques
+        const clientStats = new Map();
+    
+        for (const order of farmerOrders) {
+          console.log(`Traitement de la commande :`, order);
+    
+          // Vérifier que l'ordre et ses champs existent
+          if (!order || !Array.isArray(order.buyerName) || !Array.isArray(order.buyerEmail)) {
+            console.warn('Commande invalide ignorée :', order);
+            continue;
+          }
+    
+          const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
+          const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
+          const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
+    
+          console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
+    
+          if (buyerName && buyerEmail) {
+            // Si le client existe déjà dans la Map, mettre à jour ses statistiques
+            if (clientStats.has(buyerEmail)) {
+              const client = clientStats.get(buyerEmail);
+    
+              // Mettre à jour le nombre total de commandes
+              client.orderCount += 1;
+    
+              // Mettre à jour le montant total dépensé
+              client.totalSpent += totalAmount;
+    
+              // Mettre à jour les produits achetés
+              for (const productItem of order.products) {
+                const productId = productItem.productId;
+                const productName = productItem.lib;
+                const productCategory = productItem.category;
+                const productMesure = productItem.mesure;
+                const productQuantity = productItem.quantity;
+                const productPrice = productItem.price;
+                const productTotal = productItem.total;
+    
+                // Vérifier si le produit appartient à l'agriculteur
+                const foundProduct = await this.productsService.findOne(productId);
+                if (foundProduct.fields.farmerId.includes(farmerId)) {
+                  // Cumuler les informations sur les produits
+                  if (!client.products[productName]) {
+                    client.products[productName] = {
+                      productId,
+                      category: productCategory,
+                      //mesure: productMesure,
+                      //unitPrice: productPrice,
+                      totalQuantity: 0,
+                      totalSpent: 0,
+                      purchaseCount: 0,
+                    };
+                  }
+    
+                  client.products[productName].totalQuantity += productQuantity;
+                  client.products[productName].totalSpent += productTotal;
+                  client.products[productName].purchaseCount += 1; // Incrémenter correctement le comptage
+                }
+              }
+    
+              // Mettre à jour les dates
+              if (!client.firstOrderDate || new Date(order.createdDate) < new Date(client.firstOrderDate)) {
+                client.firstOrderDate = order.createdDate;
+              }
+              if (!client.lastOrderDate || new Date(order.statusDate) > new Date(client.lastOrderDate)) {
+                client.lastOrderDate = order.createdDate;
+              }
+    
+              // Mettre à jour le statut des commandes
+              if (order.status === 'pending') {
+                client.statusDistribution.pending += 1;
+              } else if (order.status === 'confirmed') {
+                client.statusDistribution.confirmed += 1;
+              } else if (order.status === 'delivered') {
+                client.statusDistribution.delivered += 1;
+              } else if (order.status === 'completed') {
+                client.statusDistribution.completed += 1;
+              }
+            } else {
+              // Sinon, ajouter le client avec un compteur initialisé
+              const products = {};
+              for (const productItem of order.products) {
+                const productId = productItem.productId;
+                const productName = productItem.lib;
+                const productCategory = productItem.category;
+                const productMesure = productItem.mesure;
+                const productQuantity = productItem.quantity;
+                const productPrice = productItem.price;
+                const productTotal = productItem.total;
+    
+                // Vérifier si le produit appartient à l'agriculteur
+                const foundProduct = await this.productsService.findOne(productId);
+                if (foundProduct.fields.farmerId.includes(farmerId)) {
+                  products[productName] = {
+                    productId,
+                    category: productCategory,
+                    //productMesure,
+                    //productPrice,
+                    totalQuantity: productQuantity,
+                    totalSpent: productTotal,
+                    purchaseCount: 1, // Initialiser le comptage à 1
+                  };
+                }
+              }
+    
+              clientStats.set(buyerEmail, {
+                buyerName,
+                buyerEmail,
+                orderCount: 1,
+                totalSpent: totalAmount,
+                firstOrderDate: order.createdDate,
+                lastOrderDate: order.createdDate,
+                products: products,
+                statusDistribution: {
+                  pending: order.status === 'pending' ? 1 : 0,
+                  confirmed: order.status === 'confirmed' ? 1 : 0,
+                  delivered: order.status === 'delivered' ? 1 : 0,
+                  completed: order.status === 'completed' ? 1 : 0,
+                },
+              });
+            }
+          }
+        }
+    
+        // Convertir la Map en tableau avant de retourner les données
+        return Array.from(clientStats.values());
+      } catch (error) {
+        console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
+        throw error; // Propager l'erreur telle quelle
+      }
+    }
+  }

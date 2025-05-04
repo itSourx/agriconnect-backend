@@ -97,7 +97,7 @@ export class ProductsService {
         if (typeof data.Gallery === 'string') {
           data.Gallery = [{ url: data.Gallery }];
         }
-        // Si Photo est un tableau de chaînes, convertissez chaque élément
+        // Si Gallerie est un tableau de chaînes, convertissez chaque élément
         else if (Array.isArray(data.Gallery)) {
           data.Gallery = data.Gallery.map(url => ({ url }));
         }
@@ -353,7 +353,24 @@ async updatePhoto(productId: string, photo: Express.Multer.File) {
       throw error;
     }
   }
+  // Méthode pour récupérer les produits d'un agriculteur spécifique
+  async findByFarmer(farmerId: string): Promise<any[]> {
+    try {
+      // Récupérer tous les produits
+      const allProducts = await this.findAll();
 
+      // Filtrer les produits par farmerId
+      const farmerProducts = allProducts.filter(product => {
+        const farmerIds = product.fields.farmerId; // Le champ farmerId est souvent un tableau dans Airtable
+        return Array.isArray(farmerIds) && farmerIds.includes(farmerId);
+      });
+
+      return farmerProducts;
+    } catch (error) {
+      console.error('Erreur lors de la recherche des produits par agriculteur :', error.message);
+      throw error;
+    }
+  }
   
 
 }
