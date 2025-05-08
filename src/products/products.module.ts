@@ -4,7 +4,7 @@ import { ProductsController } from './products.controller';
 import { UsersModule } from '../users/users.module'; // Importez UsresModule
 import { JwtModule } from '@nestjs/jwt'; // Importez JwtModule
 import { AuthModule } from '../auth/auth.module'; // Importez AuthModule
-import { GCSService } from './gcs.service'; // Importez le service GCS
+import { GCSService } from '../google_cloud/gcs.service'; // Importez le service GCS
 
 
 

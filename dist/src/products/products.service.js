@@ -15,7 +15,7 @@ const common_1 = require("@nestjs/common");
 const axios_1 = require("axios");
 const dotenv = require("dotenv");
 const users_service_1 = require("../users/users.service");
-const gcs_service_1 = require("./gcs.service");
+const gcs_service_1 = require("../google_cloud/gcs.service");
 const fs_1 = require("fs");
 dotenv.config();
 let ProductsService = ProductsService_1 = class ProductsService {

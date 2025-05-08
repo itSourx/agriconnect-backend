@@ -17,11 +17,14 @@ const bcrypt = require("bcrypt");
 const profiles_service_1 = require("../profiles/profiles.service");
 const blacklist_service_1 = require("../auth/blacklist.service");
 const nodemailer = require("nodemailer");
+const gcs_service_1 = require("../google_cloud/gcs.service");
+const fs_1 = require("fs");
 dotenv.config();
 let UsersService = class UsersService {
-    constructor(blacklistService, profilesService) {
+    constructor(blacklistService, profilesService, gcsService) {
         this.blacklistService = blacklistService;
         this.profilesService = profilesService;
+        this.gcsService = gcsService;
         this.apiKey = process.env.AIRTABLE_API_KEY;
         this.baseId = process.env.AIRTABLE_BASE_ID;
         this.tableName = process.env.AIRTABLE_USERS_TABLE;
@@ -125,14 +128,28 @@ let UsersService = class UsersService {
             throw new Error('Impossible de récupérer les données utilisateur.');
         }
     }
-    async create(data) {
+    async create(data, files) {
         const existingUser = await this.findOneByEmail(data.email);
         if (existingUser) {
             throw new common_1.ConflictException('Un utilisateur avec cet email existe déjà.');
         }
         const reference = Math.floor(1000000 + Math.random() * 9000000).toString();
         data.reference = reference;
-        if (data.Photo) {
+        if (files && files.length > 0) {
+            const uploadedImages = await Promise.all(files.map(async (file) => {
+                try {
+                    const publicUrl = await this.gcsService.uploadImage(file.path);
+                    (0, fs_1.unlinkSync)(file.path);
+                    return publicUrl;
+                }
+                catch (error) {
+                    console.error('Erreur lors de l\'upload de l\'image :', error.message);
+                    throw new Error('Impossible d\'uploader l\'image.');
+                }
+            }));
+            data.Photo = uploadedImages.map(url => ({ url }));
+        }
+        else if (data.Photo) {
             if (typeof data.Photo === 'string') {
                 data.Photo = [{ url: data.Photo }];
             }
@@ -304,6 +321,7 @@ exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [blacklist_service_1.BlacklistService,
-        profiles_service_1.ProfilesService])
+        profiles_service_1.ProfilesService,
+        gcs_service_1.GCSService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

@@ -1,5 +1,5 @@
 import { UsersService } from '../users/users.service';
-import { GCSService } from './gcs.service';
+import { GCSService } from '../google_cloud/gcs.service';
 export declare class ProductsService {
     private readonly usersService;
     private readonly gcsService;

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GCSService } from './gcs.service';
+import { GCSService } from '../google_cloud/gcs.service';
 
 @Module({
   providers: [GCSService],

@@ -18,6 +18,8 @@ const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./create-user.dto");
 const change_password_dto_1 = require("./change-password.dto");
 const auth_guard_1 = require("../auth/auth.guard");
+const multer_1 = require("multer");
+const platform_express_1 = require("@nestjs/platform-express");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -37,8 +39,8 @@ let UsersController = class UsersController {
     async create(createUserDto) {
         return this.usersService.create(createUserDto);
     }
-    async register(createUserDto) {
-        return this.usersService.create(createUserDto);
+    async register(files, createUserDto) {
+        return this.usersService.create(createUserDto, files);
     }
     async update(id, data) {
         return this.usersService.update(id, data);
@@ -91,6 +93,7 @@ __decorate([
 ], UsersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)('add/'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -100,9 +103,18 @@ __decorate([
 __decorate([
     (0, common_1.Post)('register'),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('Photo', 5, {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads',
+            filename: (req, file, callback) => {
+                callback(null, `${Date.now()}-${file.originalname}`);
+            },
+        }),
+    })),
+    __param(0, (0, common_1.UploadedFiles)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_user_dto_1.CreateUserDto]),
+    __metadata("design:paramtypes", [Array, create_user_dto_1.CreateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "register", null);
 __decorate([

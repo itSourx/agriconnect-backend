@@ -1,8 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, UseInterceptors, UploadedFiles, UploadedFile } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './create-user.dto';
 import { ChangePasswordDto } from './change-password.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express'; // Import correct
+import { diskStorage } from 'multer';
+import { FilesInterceptor } from '@nestjs/platform-express';
+
 
 
 @Controller('users')
@@ -35,16 +39,29 @@ export class UsersController {
   }
 
   @Post('add/')
+  @UseGuards(AuthGuard)
   @UsePipes(new ValidationPipe())
   async create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   // Nouvelle méthode : Inscription d'un utilisateur avec email et mot de passe
-  @Post('register') // Endpoint spécifique pour l'inscription
+  @Post('register')
     @UsePipes(new ValidationPipe())
-    async register(@Body() createUserDto: CreateUserDto) {
-      return this.usersService.create(createUserDto);  
+      @UseInterceptors(
+        FilesInterceptor('Photo', 5, {
+          storage: diskStorage({
+            destination: './uploads', // Stocker les fichiers temporairement
+            filename: (req, file, callback) => {
+              callback(null, `${Date.now()}-${file.originalname}`);
+            },
+          }),
+        })
+      )
+    async register(
+      @UploadedFiles() files: Express.Multer.File[],
+      @Body() createUserDto: CreateUserDto) {
+      return this.usersService.create(createUserDto, files);  
   } // <--- Correction ici : Ajout de la fermeture de la parenthèse
 
   @Put(':id')

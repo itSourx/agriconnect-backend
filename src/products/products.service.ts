@@ -7,7 +7,7 @@ import * as multer from 'multer';
 import * as FormData from 'form-data';
 import { Storage } from '@google-cloud/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { GCSService } from './gcs.service';
+import { GCSService } from '../google_cloud/gcs.service';
 import { unlinkSync } from 'fs';
 
 
@@ -134,7 +134,6 @@ export class ProductsService {
         data.Photo = data.Photo.map(url => ({ url }));
       }
     }
-
 
     try {
       // Envoyer les données à Airtable

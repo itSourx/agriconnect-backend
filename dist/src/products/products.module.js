@@ -13,7 +13,7 @@ const products_controller_1 = require("./products.controller");
 const users_module_1 = require("../users/users.module");
 const jwt_1 = require("@nestjs/jwt");
 const auth_module_1 = require("../auth/auth.module");
-const gcs_service_1 = require("./gcs.service");
+const gcs_service_1 = require("../google_cloud/gcs.service");
 let ProductsModule = class ProductsModule {
 };
 exports.ProductsModule = ProductsModule;

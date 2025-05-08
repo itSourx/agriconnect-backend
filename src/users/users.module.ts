@@ -4,6 +4,7 @@ import { UsersController } from './users.controller';
 import { JwtModule } from '@nestjs/jwt'; // Importez JwtModule
 import { AuthModule } from '../auth/auth.module'; // Importez AuthModule
 import { ProfilesModule } from '../profiles/profiles.module'; // Importez ProfilesModule
+import { GCSService } from '../google_cloud/gcs.service'; // Importez le service GCS
 
 
 @Module({
@@ -15,7 +16,7 @@ import { ProfilesModule } from '../profiles/profiles.module'; // Importez Profil
     }),
     forwardRef(() => AuthModule), // Utilisez forwardRef() pour éviter la circularité
   ],
-  providers: [UsersService],
+  providers: [UsersService, GCSService],
   controllers: [UsersController],
   exports: [UsersService],
 })

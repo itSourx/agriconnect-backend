@@ -6,9 +6,9 @@ import { ProfilesService } from '../profiles/profiles.service'; // Importez Prof
 import { BlacklistService } from '../auth/blacklist.service';
 import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
 import * as nodemailer from 'nodemailer';
-
-
-
+import { GCSService } from '../google_cloud/gcs.service';
+import { unlinkSync } from 'fs';
+import { Storage } from '@google-cloud/storage';
 
 
 dotenv.config();
@@ -21,8 +21,9 @@ export class UsersService {
 
   constructor(
     private readonly blacklistService: BlacklistService, // Injectez BlacklistService
-    private readonly profilesService: ProfilesService,   // Injectez ProfilesService
-  ) {}
+    private readonly profilesService: ProfilesService, // Injectez ProfilesService
+    private readonly gcsService: GCSService) {}    
+
 
 
   private getHeaders() {
@@ -171,7 +172,7 @@ export class UsersService {
     }
   }
 
-  async create(data: any): Promise<any> {
+  async create(data: any, files?: Express.Multer.File[]): Promise<any> {
     // Vérifier si l'email existe déjà
     const existingUser = await this.findOneByEmail(data.email);
     if (existingUser) {
@@ -179,9 +180,40 @@ export class UsersService {
     }
     // Générer une référence aléatoire de 5 chiffres
     const reference = Math.floor(1000000 + Math.random() * 9000000).toString();
-
     data.reference = reference; // Ajouter la référence aux données
-    if (data.Photo) {
+
+    /*if (data.Photo) {
+      // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
+      if (typeof data.Photo === 'string') {
+        data.Photo = [{ url: data.Photo }];
+      }
+      // Si Photo est un tableau de chaînes, convertissez chaque élément
+      else if (Array.isArray(data.Photo)) {
+        data.Photo = data.Photo.map(url => ({ url }));
+      }
+    }*/
+    // Gestion des images locales
+    if (files && files.length > 0) {
+      // Uploader chaque fichier vers GCS
+      const uploadedImages = await Promise.all(
+        files.map(async (file) => {
+          try {
+            // Uploader l'image vers GCS
+            const publicUrl = await this.gcsService.uploadImage(file.path);
+
+            // Supprimer le fichier local après l'upload
+            unlinkSync(file.path); // Nettoyage du fichier temporaire
+
+            return publicUrl;
+          } catch (error) {
+            console.error('Erreur lors de l\'upload de l\'image :', error.message);
+            throw new Error('Impossible d\'uploader l\'image.');
+          }
+        })
+      );
+      // Remplacer le champ Photo par les URLs des images uploadées
+      data.Photo = uploadedImages.map(url => ({ url }));
+    } else if (data.Photo) {
       // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
       if (typeof data.Photo === 'string') {
         data.Photo = [{ url: data.Photo }];
@@ -191,6 +223,7 @@ export class UsersService {
         data.Photo = data.Photo.map(url => ({ url }));
       }
     }
+
     // Si profileType est fourni, récupérez l'ID du profil correspondant
     if (data.profileType) {
       const profile = await this.profilesService.findOneByType(data.profileType);

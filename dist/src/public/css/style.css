@@ -1,0 +1,9 @@
+.hero {
+    background: linear-gradient(135deg, #4CAF50, #8BC34A, rgba(0,100,0,0.7)), 
+                url('/images/farm-bg.jpg') center/cover;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    transition: transform 0.3s ease;
+}

@@ -1,12 +1,14 @@
 import { ProfilesService } from '../profiles/profiles.service';
 import { BlacklistService } from '../auth/blacklist.service';
+import { GCSService } from '../google_cloud/gcs.service';
 export declare class UsersService {
     private readonly blacklistService;
     private readonly profilesService;
+    private readonly gcsService;
     private readonly apiKey;
     private readonly baseId;
     private readonly tableName;
-    constructor(blacklistService: BlacklistService, profilesService: ProfilesService);
+    constructor(blacklistService: BlacklistService, profilesService: ProfilesService, gcsService: GCSService);
     private getHeaders;
     private getUrl;
     private verifyPassword;
@@ -17,7 +19,7 @@ export declare class UsersService {
     findUsersByProfile(profileId: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
     findOneByEmail(email: string): Promise<any | null>;
-    create(data: any): Promise<any>;
+    create(data: any, files?: Express.Multer.File[]): Promise<any>;
     update(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     findAllByProfile(profile: string): Promise<any[]>;
