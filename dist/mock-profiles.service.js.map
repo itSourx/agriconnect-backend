@@ -1,1 +1,0 @@
-{"version":3,"file":"mock-profiles.service.js","sourceRoot":"","sources":["../src/mock-profiles.service.ts"],"names":[],"mappings":";;;;;;;;;AAAA,2CAA4C;AAGrC,IAAM,mBAAmB,GAAzB,MAAM,mBAAmB;IAC9B,aAAa,CAAC,IAAY;QACxB,OAAO,OAAO,CAAC,OAAO,CAAC,EAAE,EAAE,EAAE,gBAAgB,EAAE,CAAC,CAAC;IACnD,CAAC;CACF,CAAA;AAJY,kDAAmB;8BAAnB,mBAAmB;IAD/B,IAAA,mBAAU,GAAE;GACA,mBAAmB,CAI/B"}

@@ -1,20 +1,29 @@
-import { Injectable, ConflictException, HttpException, HttpStatus, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, ConflictException, HttpException, HttpStatus, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import { UsersService } from '../users/users.service'; // Importez ProfilesService
 import { Express } from 'express';
 import * as multer from 'multer';
+import * as FormData from 'form-data';
+import { Storage } from '@google-cloud/storage';
+import { v4 as uuidv4 } from 'uuid';
+import { GCSService } from './gcs.service';
+import { unlinkSync } from 'fs';
+
+
 
 dotenv.config();
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
   private readonly apiKey = process.env.AIRTABLE_API_KEY;
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
   private readonly tableName = process.env.AIRTABLE_PRODUCTS_TABLE;
 
-  constructor(private readonly usersService: UsersService) {} // Injection de UsersService
-  
+  constructor(
+    private readonly usersService: UsersService, // Injection de UsersService
+    private readonly gcsService: GCSService) {} 
 
   // Ajoutez ici les mêmes méthodes que dans UsersService (findAll, findOne, create, update, delete)
   private getHeaders() {
@@ -45,6 +54,7 @@ export class ProductsService {
     const response = await axios.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
     return response.data;
   }
+
   // Rechercher un produit par nom ou catégorie
   async search(query: string): Promise<any[]> {
     try {
@@ -70,192 +80,51 @@ export class ProductsService {
       return [];
     }
   }
-  async create(data: any): Promise<any> {
+
+  async create(data: any, files?: Express.Multer.File[]): Promise<any> {
+      // Convertir les champs numériques en nombres
+      if (typeof data.price === 'string') {
+        data.price = parseFloat(data.price);
+      }
+      if (typeof data.quantity === 'string') {
+        data.quantity = parseInt(data.quantity, 10);
+      }
+
     // Si email est fourni, récupérez l'ID du user correspondant
     if (data.email) {
       const user = await this.usersService.findOneByEmail(data.email);
-  
+
       if (!user) {
         throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
-      }
-      /*if (user.fields.profile.trim() !== 'AGRICULTEUR') {
-        throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
-      }*/
-
-      if (data.Photo) {
-        // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
-        if (typeof data.Photo === 'string') {
-          data.Photo = [{ url: data.Photo }];
-        }
-        // Si Photo est un tableau de chaînes, convertissez chaque élément
-        else if (Array.isArray(data.Photo)) {
-          data.Photo = data.Photo.map(url => ({ url }));
-        }
-      }
-      if (data.Gallery) {
-        // Si Gallerie est une chaîne (URL), convertissez-la en tableau d'objets
-        if (typeof data.Gallery === 'string') {
-          data.Gallery = [{ url: data.Gallery }];
-        }
-        // Si Gallerie est un tableau de chaînes, convertissez chaque élément
-        else if (Array.isArray(data.Gallery)) {
-          data.Gallery = data.Gallery.map(url => ({ url }));
-        }
       }
 
       // Formatez le champ "user" comme un tableau d'IDs
       data.user = [user.id];
       delete data.email; // Supprimez email car il n'est pas stocké directement
-    } 
-  
-    try {
-      // Envoyer les données à Airtable
-      const response = await axios.post(
-        this.getUrl(),
-        { records: [{ fields: data }] },
-        { headers: this.getHeaders() }
-      );
-  
-      // Extraire l'ID généré par Airtable
-      const createdRecord = response.data.records[0];
-      const generatedId = createdRecord.id;
-  
-      return {
-        id: generatedId,
-        fields: createdRecord.fields,
-      };
-    } catch (error) {
-      console.error('Erreur lors de la création du produit :', error);
-      throw Error; //('Impossible de créer ce produit.');
     }
-  }
 
-  async createWithFileUpload(data: any, files: Express.Multer.File[]): Promise<any> {
-    // 1. Traitement de l'email/utilisateur
-    if (data.email) {
-      const user = await this.usersService.findOneByEmail(data.email);
-      if (!user) throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
-      data.user = [user.id];
-      delete data.email;
-    }
-  
-    // 2. Traitement des fichiers uploadés
+    // Gestion des images locales
     if (files && files.length > 0) {
-      const uploadPromises = files.map(file => {
-        return this.uploadFileToAirtable(file);
-      });
-      
-      data.Photo = await Promise.all(uploadPromises);
-    } else if (data.Photo) {
-      // Gestion des URLs comme avant
-      data.Photo = typeof data.Photo === 'string' 
-        ? [{ url: data.Photo }] 
-        : data.Photo.map((url: string) => ({ url }));
-    }
-  
-    // 3. Création du produit
-    try {
-      const response = await axios.post(
-        this.getUrl(),
-        { records: [{ fields: data }] },
-        { headers: this.getHeaders() }
-      );
-      
-      const createdRecord = response.data.records[0];
-      return {
-        id: createdRecord.id, // Correction: utiliser createdRecord.id au lieu de generatedId
-        fields: createdRecord.fields,
-      };
-    } catch (error) {
-      console.error('Erreur création produit:', error);
-      throw error;
-    }
-  }
-  
-  private async uploadFileToAirtable(file: Express.Multer.File): Promise<any> {
-    const formData = new FormData();
-    // Correction pour l'append du fichier
-    formData.append('file', new Blob([file.buffer]), file.originalname);
-  
-    try {
-      const response = await axios.post(
-        'https://api.airtable.com/v0/appby4zylKcK8soNg/Products/attachments',
-        formData,
-        {
-          headers: {
-            ...this.getHeaders(),
-            'Content-Type': 'multipart/form-data',
-          }
-        }
-      );
-      return { url: response.data.url };
-    } catch (error) {
-      console.error('Erreur upload fichier:', error);
-      throw new Error('Échec de l\'upload du fichier');
-    }
-  }
+      // Uploader chaque fichier vers GCS
+      const uploadedImages = await Promise.all(
+        files.map(async (file) => {
+          try {
+            // Uploader l'image vers GCS
+            const publicUrl = await this.gcsService.uploadImage(file.path);
 
-// products.service.ts
-async updatePhoto(productId: string, photo: Express.Multer.File) {
-  // 1. Uploader la photo
-  const uploadedPhoto = await this.uploadFileToAirtable(photo);
-  
-  // 2. Mettre à jour le produit
-  return this.update(productId, { 
-    Photo: [uploadedPhoto] 
-  });
-}
-  // Mettre à jour un produit
-  async update(
-    id: string, 
-    data: any, 
-    files?: {
-      photos?: Express.Multer.File[],
-      gallery?: Express.Multer.File[]
-    }
-  ): Promise<any> {
-    // Traitement des photos uploadées
-    if (files?.photos?.length) {
-      const uploadPromises = files.photos.map(file => 
-        this.uploadFileToAirtable(file)
+            // Supprimer le fichier local après l'upload
+            unlinkSync(file.path); // Nettoyage du fichier temporaire
+
+            return publicUrl;
+          } catch (error) {
+            console.error('Erreur lors de l\'upload de l\'image :', error.message);
+            throw new Error('Impossible d\'uploader l\'image.');
+          }
+        })
       );
-      data.Photo = await Promise.all(uploadPromises);
-    } 
-    // Gestion des photos existantes (URLs)
-    else if (data.Photo) {
-      data.Photo = typeof data.Photo === 'string' 
-        ? [{ url: data.Photo }] 
-        : data.Photo.map((url: string) => ({ url }));
-    }
-  
-    // Traitement de la galerie uploadée
-    if (files?.gallery?.length) {
-      const uploadPromises = files.gallery.map(file => 
-        this.uploadFileToAirtable(file)
-      );
-      data.Gallery = await Promise.all(uploadPromises);
-    } 
-    // Gestion de la galerie existante (URLs)
-    else if (data.Gallery) {
-      data.Gallery = typeof data.Gallery === 'string'
-        ? [{ url: data.Gallery }]
-        : data.Gallery.map((url: string) => ({ url }));
-    }
-  
-    try {
-      const response = await axios.patch(
-        `${this.getUrl()}/${id}`,
-        { fields: data },
-        { headers: this.getHeaders() }
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Erreur mise à jour produit:', error.response?.data || error.message);
-      throw new Error('Échec de la mise à jour du produit');
-    }
-  }
-  /*async update(id: string, data: any): Promise<any> {
-    if (data.Photo) {
+      // Remplacer le champ Photo par les URLs des images uploadées
+      data.Photo = uploadedImages.map(url => ({ url }));
+    } else if (data.Photo) {
       // Si Photo est une chaîne (URL), convertissez-la en tableau d'objets
       if (typeof data.Photo === 'string') {
         data.Photo = [{ url: data.Photo }];
@@ -265,29 +134,113 @@ async updatePhoto(productId: string, photo: Express.Multer.File) {
         data.Photo = data.Photo.map(url => ({ url }));
       }
     }
-    if (data.Gallery) {
-      // Si Gallery est une chaîne (URL), convertissez-la en tableau d'objets
-      if (typeof data.Gallery === 'string') {
-        data.Gallery = [{ url: data.Gallery }];
-      }
-      // Si Gallery est un tableau de chaînes, convertissez chaque élément
-      else if (Array.isArray(data.Gallery)) {
-        data.Gallery = data.Photo.map(url => ({ url }));
-      }
-    }
-    
+
+
     try {
-      const response = await axios.patch(
-        `${this.getUrl()}/${id}`,
-        { fields: data },
+      // Envoyer les données à Airtable
+      const response = await axios.post(
+        this.getUrl(),
+        { records: [{ fields: data }] },
         { headers: this.getHeaders() }
       );
+
+      // Extraire l'ID généré par Airtable
+      const createdRecord = response.data.records[0];
+      const generatedId = createdRecord.id;
+
+      return {
+        id: generatedId,
+        fields: createdRecord.fields,
+      };
+    } catch (error) {
+      console.error('Erreur lors de la création du produit :', error);
+      throw error; //('Impossible de créer ce produit.');
+    }
+  }
+
+  async update(
+    id: string,
+    data: any = {}, // Initialiser data comme un objet vide par défaut
+    files?: Express.Multer.File[], // Fichiers uploadés pour Photo
+    galleryFiles?: Express.Multer.File[] // Fichiers uploadés pour Gallery
+  ): Promise<any> {
+    try {
+      console.log('Données reçues dans le service :', data);
+
+      // Convertir price en nombre si c'est une chaîne
+      if (data.price && typeof data.price === 'string') {
+        data.price = parseFloat(data.price); // Conversion en nombre
+      }
+      
+      // Convertir quantity en nombre si c'est une chaîne
+      if (data.quantity && typeof data.quantity === 'string') {
+        data.quantity = parseInt(data.quantity); // Conversion en nombre
+      }
+
+
+      // Gestion des images locales pour le champ Photo
+      if (files && files.length > 0) {
+        const uploadedImages = await Promise.all(
+          files.map(async (file) => {
+            try {
+              // Uploader l'image vers GCS
+              const publicUrl = await this.gcsService.uploadImage(file.path);
+
+              // Supprimer le fichier local après l'upload
+              unlinkSync(file.path); // Nettoyage du fichier temporaire
+
+              return publicUrl;
+            } catch (error) {
+              console.error('Erreur lors de l\'upload de l\'image :', error.message);
+              throw new Error('Impossible d\'uploader l\'image.');
+            }
+          })
+        );
+
+        // Remplacer ou ajouter les nouvelles URLs au champ Photo
+        data.Photo = uploadedImages.map(url => ({ url }));
+      }
+
+      // Gestion des images locales pour le champ Gallery
+      if (galleryFiles && galleryFiles.length > 0) {
+        const uploadedGalleryImages = await Promise.all(
+          galleryFiles.map(async (file) => {
+            try {
+              // Uploader l'image vers GCS
+              const publicUrl = await this.gcsService.uploadImage(file.path);
+
+              // Supprimer le fichier local après l'upload
+              unlinkSync(file.path); // Nettoyage du fichier temporaire
+
+              return publicUrl;
+            } catch (error) {
+              console.error('Erreur lors de l\'upload de l\'image :', error.message);
+              throw new Error('Impossible d\'uploader l\'image.');
+            }
+          })
+        );
+
+        // Remplacer ou ajouter les nouvelles URLs au champ Gallery
+        data.Gallery = uploadedGalleryImages.map(url => ({ url }));
+      }
+
+      // Normaliser les données finales avant envoi à Airtable
+      const normalizedData = { ...data }; // Convertit [Object: null prototype] en un objet standard
+      console.log('Données envoyées à Airtable :', { fields: normalizedData });
+
+      // Envoyer les données mises à jour à Airtable
+      const response = await axios.patch(
+        `${this.getUrl()}/${id}`,
+        { fields: normalizedData },
+        { headers: this.getHeaders() }
+      );
+
       return response.data;
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du produit :', error);
+      console.error('Erreur lors de la mise à jour du produit :', error.message);
       throw new Error('Impossible de mettre à jour le produit.');
     }
-  }*/
+  }
 
   async delete(id: string): Promise<any> {
     const response = await axios.delete(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
@@ -353,6 +306,7 @@ async updatePhoto(productId: string, photo: Express.Multer.File) {
       throw error;
     }
   }
+  
   // Méthode pour récupérer les produits d'un agriculteur spécifique
   async findByFarmer(farmerId: string): Promise<any[]> {
     try {

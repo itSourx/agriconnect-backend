@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsNumber, IsArray} from 'class-validator';
+import { IsEmail, IsString, IsNumber, IsArray, IsOptional} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 
@@ -22,16 +22,17 @@ export class CreateProductDto {
     example: '25',
     description: 'La quantité du produit',
   })
-  //@IsString()
-  @IsNumber()
-  quantity: number;
+  @IsString()
+  //@IsNumber()
+  quantity: string; //string;
 
   @ApiProperty({
     example: '100F CFA',
     description: 'Le prix du produit',
   })
-  @IsNumber()
-  price: number;
+  @IsString()
+  //@IsNumber()
+  price: string; //;number
 
   @ApiProperty({
     example: 'Fruits',
@@ -59,12 +60,13 @@ export class CreateProductDto {
     type: [String], // Indique que c'est un tableau de chaînes de caractères
     example: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'],
   })
+  @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  //@IsString({ each: true })
   Photo: string[];
 
-  @IsArray()
+  /*@IsArray()
   @IsString({ each: true })
-  Gallery: string[];
+  Gallery: string[];*/
 }
 

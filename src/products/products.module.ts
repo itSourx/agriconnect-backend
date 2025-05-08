@@ -4,6 +4,8 @@ import { ProductsController } from './products.controller';
 import { UsersModule } from '../users/users.module'; // Importez UsresModule
 import { JwtModule } from '@nestjs/jwt'; // Importez JwtModule
 import { AuthModule } from '../auth/auth.module'; // Importez AuthModule
+import { GCSService } from './gcs.service'; // Importez le service GCS
+
 
 
 @Module({
@@ -15,7 +17,7 @@ import { AuthModule } from '../auth/auth.module'; // Importez AuthModule
     }),
     forwardRef(() => AuthModule), // Utilisez forwardRef() pour éviter la circularité
   ],
-  providers: [ProductsService],
+  providers: [ProductsService, GCSService],
   exports: [ProductsService],
   controllers: [ProductsController]
   

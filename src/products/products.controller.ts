@@ -1,4 +1,5 @@
-import {Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request, UseGuards, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import {Controller,Logger, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request, UseGuards, UseInterceptors, UploadedFiles, UploadedFile } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express'; // Ajoutez cette ligne
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -6,13 +7,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes  } from '@nest
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../config/multer.config';
 import { Express } from 'express'; // Ajoutez cet import
-import { Multer } from 'multer'; // Ajoutez cet import
-
+import { FileInterceptor } from '@nestjs/platform-express'; // Import correct
+import { diskStorage } from 'multer';
 
 
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
+  private readonly logger = new Logger(ProductsController.name);
   constructor(private readonly productsService: ProductsService) {}
 
   // Ajoutez ici les mêmes endpoints que dans UsersController
@@ -34,25 +36,86 @@ export class ProductsController {
   async findAllByCategory(@Param('category') category: string): Promise<any[]> {
     return this.productsService.findAllByCategory(category);
   }
-  // Rechercher des produits
-  @Get('search/:query')
-  async search(@Param('query') query: string) {
-    return this.productsService.search(query);
+  
+  @Delete(':id')
+  @UseGuards(AuthGuard)
+  async delete(@Param('id') id: string) {
+    return this.productsService.delete(id);
   }
 
   @Get(':id')
+  @UseGuards(AuthGuard)
   async findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
   }
 
-  /*@Post('add/')
-  @UseGuards(AuthGuard)
-  @UsePipes(new ValidationPipe())
-   async create(@Body() CreateProductDto: CreateProductDto) {
-     return this.productsService.create(CreateProductDto);
-   }*/
 
-  @Post('add/')
+  @Post('add')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(
+    FilesInterceptor('Photo', 5, {
+      storage: diskStorage({
+        destination: './uploads', // Stocker les fichiers temporairement
+        filename: (req, file, callback) => {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+    })
+  )
+  async create(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() data: CreateProductDto
+  ) {
+    try {
+      // Appeler le service pour créer le produit
+      const product = await this.productsService.create(data, files);
+      return product;
+    } catch (error) {
+      console.error('Erreur lors de la création du produit :', error.message);
+      throw error;
+    }
+  }
+
+    @Put(':id') 
+    @UseGuards(AuthGuard)
+    @UseInterceptors(
+      FileFieldsInterceptor(
+        [
+          { name: 'Photo', maxCount: 5 }, // Champ pour les photos principales
+          { name: 'Gallery', maxCount: 10 }, // Champ pour les images de la galerie
+        ],
+        {
+          storage: diskStorage({
+            destination: './uploads', // Dossier temporaire pour les fichiers uploadés
+            filename: (req, file, callback) => {
+              callback(null, `${Date.now()}-${file.originalname}`);
+            },
+          }),
+        }
+      )
+    )
+    async update(
+      @Param('id') id: string, // ID du produit à mettre à jour
+      @Body() data: any, // Données textuelles
+      @UploadedFiles() files: { Photo?: Express.Multer.File[], Gallery?: Express.Multer.File[] } // Fichiers uploadés
+    ) {
+      try {
+        console.log('Données reçues dans le contrôleur :', data);
+        console.log('Fichiers uploadés dans le contrôleur :', files);
+  
+        const photoFiles = files.Photo || [];
+        const galleryFiles = files.Gallery || [];
+  
+        // Appeler le service pour mettre à jour le produit
+        const updatedProduct = await this.productsService.update(id, data, photoFiles, galleryFiles);
+        return updatedProduct;
+      } catch (error) {
+        console.error('Erreur dans le contrôleur :', error.message);
+        throw error;
+      }
+    }
+
+/*  @Post()
   @UseGuards(AuthGuard)
    @UsePipes(new ValidationPipe())
      @ApiOperation({ summary: 'Création d\'un produit' }) // Description de l'opération
@@ -93,80 +156,11 @@ export class ProductsController {
      @ApiResponse({ status: 201, description: 'Création du produit réussie.' }) // Réponse en cas de succès
      @ApiResponse({ status: 401, description: 'Aucun token fourni.' }) // Réponse en cas d'échec
      @ApiResponse({ status: 400, description: 'Requête mal envoyée, il manque un paramètre dont la valeur n\'a pas été fournie.' }) // Réponse en cas d'échec
+*/
 
-     @Post()
-     @UseGuards(AuthGuard)
-     @UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData
-     @ApiConsumes('multipart/form-data')
-     @ApiBody({
-       schema: {
-         type: 'object',
-         properties: {
-           Name: { type: 'string' },
-           description: { type: 'string' },
-           quantity: { type: 'number' },
-           price: { type: 'string' },
-           category: { type: 'string' },
-           mesure: { type: 'string' },
-           email: { type: 'string' },
-           Photos: {
-             type: 'array',
-             items: {
-               type: 'string',
-               format: 'binary',
-             },
-           },
-         },
-       },
-     })
-   async create(
-    @Body() CreateProductDto: CreateProductDto,
-    @UploadedFiles() files: Express.Multer.File[], 
-    //@UploadedFiles() files: Multer.File[], // Modification ici
-    @Request() req) {
-
-    console.log('Utilisateur connecté :', req.user);
-    // Afficher les types et valeurs exactes
-    console.log('Type de profile :', typeof req.user.profile);
-    console.log('Valeur brute de profile :', JSON.stringify(req.user.profile));
-    
-    if (!req.user || !req.user.profile) {
-      throw new UnauthorizedException('Informations utilisateur manquantes.');
-    }
-      // Vérifiez si l'utilisateur est un agriculteur
-    if (req.user.profile.trim() !=='AGRICULTEUR') {
-      console.error(`Profile incorrect : ${req.user.profile}`);
-      throw new UnauthorizedException('Seul un agriculteur peut ajouter des produits.');
-    }
-    if (files && files.length > 0) {
-      return this.productsService.createWithFileUpload(CreateProductDto, files);
-    }
-     return this.productsService.create(CreateProductDto);
-   }
-
-  @Put(':id')
-  @UseGuards(AuthGuard)
-  async update(@Param('id') id: string, @Body() data: any) {
-    return this.productsService.update(id, data);
-  }
-  
-  @Put('upload/:productId')
-  //@UseInterceptors(FileInterceptor('photo'))
-  @UseInterceptors(FilesInterceptor('photos', 10, multerOptions)) // 'photos' doit matcher le nom du champ dans FormData
-  @ApiConsumes('multipart/form-data')
-  async updatePhoto(
-    //@Body('productId') productId: string,
-      @Param('productId') productId: string,
-    //@UploadedFile() photo: Express.Multer.File,
-    @UploadedFiles() photo: Express.Multer.File, 
-
-  ) {
-    return this.productsService.updatePhoto(productId, photo);
-  }
-
-  @Delete(':id')
-  @UseGuards(AuthGuard)
-  async delete(@Param('id') id: string) {
-    return this.productsService.delete(id);
+  // Rechercher des produits
+  @Get('search/:query')
+  async search(@Param('query') query: string) {
+    return this.productsService.search(query);
   }
 }

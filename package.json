@@ -23,6 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.16.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/common": "^11.0.7",
     "@nestjs/core": "^11.0.7",
