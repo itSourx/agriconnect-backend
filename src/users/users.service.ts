@@ -18,6 +18,7 @@ export class UsersService {
   private readonly apiKey = process.env.AIRTABLE_API_KEY;
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
   private readonly tableName = process.env.AIRTABLE_USERS_TABLE;
+  private base;
 
   constructor(
     private readonly blacklistService: BlacklistService, // Injectez BlacklistService
@@ -475,4 +476,69 @@ export class UsersService {
       return null;
     }
   }
+
+// Vérification du statut d'un utilisateur
+async checkUserStatus(email: string): Promise<void> {
+  console.log(`Vérification du statut de l'utilisateur : ${email}`);
+  const user = await this.findOneByEmail(email);
+
+  if (user.fields.Status === 'Deactivated') {
+    throw new Error('Votre compte a été bloqué. Veuillez contacter l\'administrateur ');
+  }
+  console.log(`Statut validé avec succès pour l'utilisateur' : ${email}`);
+}
+
+// Débloquer un compte
+async unlockUser(email: string) {
+  // Étape 1 : Rechercher l'utilisateur par email
+  const user = await this.findOneByEmail(email);
+
+  // Vérifier si l'utilisateur existe
+  if (!user) {
+    throw new Error('Aucun utilisateur trouvé avec cet email.');
+  }
+
+  // Étape 2 : Vérifier si le compte est déjà activé
+  if (user.Status === 'Activated') {
+    throw new Error('Le compte est déjà activé.');
+  }
+
+  try {
+    // Étape 3 : Activer le compte
+    await this.update(user.id, { Status: 'Activated', tentatives_echec: 0 });
+
+    // Retourner un message de succès
+    return { message: 'Le compte a été activé avec succès.' };
+  } catch (error) {
+    // Gérer les erreurs potentielles lors de la mise à jour
+    console.error('Erreur lors de l\'activation du compte :', error);
+    throw new Error('Une erreur est survenue lors de l\'activation du compte.');
+  }
+}
+
+// Bbloquer un compte
+async blockUser(email: string): Promise<void> {
+  // Étape 1 : Rechercher l'utilisateur par email
+  const user = await this.findOneByEmail(email);
+
+  // Vérifier si l'utilisateur existe
+  if (!user) {
+    throw new Error('Aucun utilisateur trouvé avec cet email.');
+  }
+
+  // Étape 2 : Vérifier si le compte est déjà bloqué
+  if (user.Status === 'Deactivated') {
+    throw new Error('Le compte est déjà bloqué.');
+  }
+
+  try {
+    // Étape 3 : Bloquer le compte
+    await this.update(user.id, { Status: 'Deactivated' });
+  } catch (error) {
+    // Gérer les erreurs potentielles lors de la mise à jour
+    console.error('Erreur lors du blocage du compte :', error);
+    throw new Error('Une erreur est survenue lors du blocage du compte.');
+  }
+}
+
 }

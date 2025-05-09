@@ -21,4 +21,14 @@ export declare class UsersController {
         temporaryPassword: string;
         newPassword: string;
     }, req: any): Promise<any>;
+    unlockUser(body: {
+        email: string;
+    }): Promise<{
+        message: string;
+    }>;
+    blockUser(body: {
+        email: string;
+    }): Promise<{
+        message: string;
+    }>;
 }

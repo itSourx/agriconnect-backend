@@ -333,6 +333,47 @@ let UsersService = class UsersService {
             return null;
         }
     }
+    async checkUserStatus(email) {
+        console.log(`Vérification du statut de l'utilisateur : ${email}`);
+        const user = await this.findOneByEmail(email);
+        if (user.fields.Status === 'Deactivated') {
+            throw new Error('Votre compte a été bloqué. Veuillez contacter l\'administrateur ');
+        }
+        console.log(`Statut validé avec succès pour l'utilisateur' : ${email}`);
+    }
+    async unlockUser(email) {
+        const user = await this.findOneByEmail(email);
+        if (!user) {
+            throw new Error('Aucun utilisateur trouvé avec cet email.');
+        }
+        if (user.Status === 'Activated') {
+            throw new Error('Le compte est déjà activé.');
+        }
+        try {
+            await this.update(user.id, { Status: 'Activated', tentatives_echec: 0 });
+            return { message: 'Le compte a été activé avec succès.' };
+        }
+        catch (error) {
+            console.error('Erreur lors de l\'activation du compte :', error);
+            throw new Error('Une erreur est survenue lors de l\'activation du compte.');
+        }
+    }
+    async blockUser(email) {
+        const user = await this.findOneByEmail(email);
+        if (!user) {
+            throw new Error('Aucun utilisateur trouvé avec cet email.');
+        }
+        if (user.Status === 'Deactivated') {
+            throw new Error('Le compte est déjà bloqué.');
+        }
+        try {
+            await this.update(user.id, { Status: 'Deactivated' });
+        }
+        catch (error) {
+            console.error('Erreur lors du blocage du compte :', error);
+            throw new Error('Une erreur est survenue lors du blocage du compte.');
+        }
+    }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([

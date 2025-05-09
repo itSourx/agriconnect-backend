@@ -62,6 +62,21 @@ let UsersController = class UsersController {
         const token = req.headers.authorization?.split(' ')[1];
         return this.usersService.validateResetPassword(email, temporaryPassword, newPassword, token);
     }
+    async unlockUser(body) {
+        const { email } = body;
+        if (!email) {
+            throw Error('Le mail est requis.');
+        }
+        return this.usersService.unlockUser(email);
+    }
+    async blockUser(body) {
+        const { email } = body;
+        if (!email) {
+            throw Error('Le mail est requis.');
+        }
+        await this.usersService.blockUser(email);
+        return { message: 'L\'utilisateur a été bloqué avec succès.' };
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -78,7 +93,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAllByProfile", null);
 __decorate([
-    (0, common_1.Get)('email/:email'),
+    (0, common_1.Get)('getUserByEmail/:email'),
     __param(0, (0, common_1.Param)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -178,6 +193,22 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "validateResetPassword", null);
+__decorate([
+    (0, common_1.Post)('unlock'),
+    (0, common_1.UseGuards)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "unlockUser", null);
+__decorate([
+    (0, common_1.Post)('block'),
+    (0, common_1.UseGuards)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "blockUser", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

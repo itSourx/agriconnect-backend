@@ -25,7 +25,11 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Identifiants incorrects.');
     }
-  
+
+    // Vérifier le statut du compte
+    await this.usersService.checkUserStatus(user.fields.email); 
+    console.log('Statut de l’utilisateur :', user.fields.Status); 
+
     // Vérifier si le mot de passe est correct
     //const isPasswordValid = await bcrypt.compare(password, user.fields.password);
 

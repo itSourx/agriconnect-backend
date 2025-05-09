@@ -28,7 +28,7 @@ export class UsersController {
   
 
   // Nouvelle route pour rechercher un utilisateur  par email
-  @Get('email/:email')
+  @Get('getUserByEmail/:email')
   async findOneByEmail(@Param('email') email: string): Promise<any> {
     return this.usersService.findOneByEmail(email);
   }
@@ -136,4 +136,31 @@ async validateResetPassword(
 
   return this.usersService.validateResetPassword(email, temporaryPassword, newPassword, token);
 }
+
+  @Post('unlock')
+  //@UseGuards(AdminGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
+  @UseGuards()
+  async unlockUser(@Body() body: { email: string }) {
+    const { email } = body;
+
+    if (!email) {
+      throw Error('Le mail est requis.');
+    }
+
+    return this.usersService.unlockUser(email);
+  }
+
+  @Post('block')
+  //@UseGuards(AuthGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
+  @UseGuards()
+  async blockUser(@Body() body: { email: string }) {
+    const { email } = body;
+
+    if (!email) {
+      throw Error('Le mail est requis.');
+    }
+
+    await this.usersService.blockUser(email);
+    return { message: 'L\'utilisateur a été bloqué avec succès.' };
+  }
 }

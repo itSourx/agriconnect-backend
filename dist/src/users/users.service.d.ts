@@ -8,6 +8,7 @@ export declare class UsersService {
     private readonly apiKey;
     private readonly baseId;
     private readonly tableName;
+    private base;
     constructor(blacklistService: BlacklistService, profilesService: ProfilesService, gcsService: GCSService);
     private getHeaders;
     private getUrl;
@@ -28,4 +29,9 @@ export declare class UsersService {
     private sendPasswordResetEmail;
     validateResetPassword(email: string, temporaryPassword: string, newPassword: string, token: string): Promise<any>;
     getProfileById(id: string): Promise<any>;
+    checkUserStatus(email: string): Promise<void>;
+    unlockUser(email: string): Promise<{
+        message: string;
+    }>;
+    blockUser(email: string): Promise<void>;
 }

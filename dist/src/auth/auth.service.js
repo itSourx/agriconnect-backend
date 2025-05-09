@@ -29,6 +29,8 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_2.UnauthorizedException('Identifiants incorrects.');
         }
+        await this.usersService.checkUserStatus(user.fields.email);
+        console.log('Statut de l’utilisateur :', user.fields.Status);
         const hasResetPassword = user.fields.resetPassword;
         let isPasswordValid = false;
         if (hasResetPassword) {
