@@ -36,14 +36,14 @@ let UsersController = class UsersController {
     async findOne(id) {
         return this.usersService.findOne(id);
     }
-    async create(createUserDto) {
-        return this.usersService.create(createUserDto);
+    async create(files, createUserDto) {
+        return this.usersService.create(createUserDto, files);
     }
     async register(files, createUserDto) {
         return this.usersService.create(createUserDto, files);
     }
-    async update(id, data) {
-        return this.usersService.update(id, data);
+    async update(id, files, data) {
+        return this.usersService.update(id, data, files);
     }
     async delete(id) {
         return this.usersService.delete(id);
@@ -95,9 +95,18 @@ __decorate([
     (0, common_1.Post)('add/'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('Photo', 5, {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads',
+            filename: (req, file, callback) => {
+                callback(null, `${Date.now()}-${file.originalname}`);
+            },
+        }),
+    })),
+    __param(0, (0, common_1.UploadedFiles)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_user_dto_1.CreateUserDto]),
+    __metadata("design:paramtypes", [Array, create_user_dto_1.CreateUserDto]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "create", null);
 __decorate([
@@ -120,10 +129,19 @@ __decorate([
 __decorate([
     (0, common_1.Put)(':id'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('Photo', 5, {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads',
+            filename: (req, file, callback) => {
+                callback(null, `${Date.now()}-${file.originalname}`);
+            },
+        }),
+    })),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, common_1.UploadedFiles)()),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Array, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "update", null);
 __decorate([

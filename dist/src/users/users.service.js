@@ -182,16 +182,11 @@ let UsersService = class UsersService {
             throw new Error('Impossible de créer l’utilisateur.');
         }
     }
-    async update(id, data) {
-        if (data.Photo) {
-            if (typeof data.Photo === 'string') {
-                data.Photo = [{ url: data.Photo }];
-            }
-            else if (Array.isArray(data.Photo)) {
-                data.Photo = data.Photo.map(url => ({ url }));
-            }
-        }
+    async update(id, data, files) {
         try {
+            if (data.ifu && typeof data.ifu === 'string') {
+                data.ifu = parseInt(data.ifu);
+            }
             if (data.profileType) {
                 const profile = await this.profilesService.findOneByType(data.profileType);
                 if (!profile) {
@@ -199,6 +194,28 @@ let UsersService = class UsersService {
                 }
                 data.profile = [profile.id];
                 delete data.profileType;
+            }
+            if (files && files.length > 0) {
+                const uploadedImages = await Promise.all(files.map(async (file) => {
+                    try {
+                        const publicUrl = await this.gcsService.uploadImage(file.path);
+                        (0, fs_1.unlinkSync)(file.path);
+                        return publicUrl;
+                    }
+                    catch (error) {
+                        console.error('Erreur lors de l\'upload de l\'image :', error.message);
+                        throw new Error('Impossible d\'uploader l\'image.');
+                    }
+                }));
+                data.Photo = uploadedImages.map(url => ({ url }));
+            }
+            else if (data.Photo) {
+                if (typeof data.Photo === 'string') {
+                    data.Photo = [{ url: data.Photo }];
+                }
+                else if (Array.isArray(data.Photo)) {
+                    data.Photo = data.Photo.map(url => ({ url }));
+                }
             }
             const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
             return response.data;

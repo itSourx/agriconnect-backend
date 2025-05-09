@@ -41,9 +41,21 @@ export class UsersController {
   @Post('add/')
   @UseGuards(AuthGuard)
   @UsePipes(new ValidationPipe())
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
-  }
+  @UseInterceptors(
+    FilesInterceptor('Photo', 5, {
+      storage: diskStorage({
+        destination: './uploads', // Stocker les fichiers temporairement
+        filename: (req, file, callback) => {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+    })
+  )
+async create(
+  @UploadedFiles() files: Express.Multer.File[],
+  @Body() createUserDto: CreateUserDto) {
+  return this.usersService.create(createUserDto, files);  
+}
 
   // Nouvelle méthode : Inscription d'un utilisateur avec email et mot de passe
   @Post('register')
@@ -66,8 +78,20 @@ export class UsersController {
 
   @Put(':id')
   @UseGuards(AuthGuard) // Protection avec JWT
-  async update(@Param('id') id: string, @Body() data: any) {
-    return this.usersService.update(id, data);
+  @UseInterceptors(
+    FilesInterceptor('Photo', 5, {
+      storage: diskStorage({
+        destination: './uploads', // Stocker les fichiers temporairement
+        filename: (req, file, callback) => {
+          callback(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+    })
+  )
+  async update(@Param('id') id: string,
+  @UploadedFiles() files: Express.Multer.File[], 
+  @Body() data: any) {
+    return this.usersService.update(id, data, files);
   }
 
   @Delete(':id')

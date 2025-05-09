@@ -77,7 +77,7 @@ export class ProductsController {
   }
 
     @Put(':id') 
-    @UseGuards(AuthGuard)
+    //@UseGuards(AuthGuard)
     @UseInterceptors(
       FileFieldsInterceptor(
         [

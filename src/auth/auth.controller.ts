@@ -14,18 +14,6 @@ export class AuthController {
 
   ) {}
 
-
-  /*@Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const { email, password } = body;
-  
-    if (!email || !password) {
-      throw new BadRequestException('Email et mot de passe sont requis.');
-    }
-  
-    // Appeler le service pour se connecter
-    return this.authService.login({ email, password });
-  }*/
   @Post('login')
   @ApiOperation({ summary: 'Connexion d\'un utilisateur' }) // Description de l'opération
   @ApiBody({ type: LoginDto }) // Modèle du corps de la requête
@@ -71,19 +59,6 @@ export class AuthController {
 
 
   }
-  /*async login(@Body() body: { email: string; password: string }) {
-    const { email, password } = body;
-
-    // Validez l'utilisateur
-    const user = await this.authService.validateUser(email, password);
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials'); // Utilisez l'exception ici
-    }
-
-    // Générez le token JWT
-    return this.authService.login(user);
-  }*/
 
   @Post('logout') // Importez @Post depuis @nestjs/common
   async logout(@Req() req: any): Promise<any> {

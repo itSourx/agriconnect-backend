@@ -8,9 +8,9 @@ export declare class UsersController {
     findAllByProfile(profile: string): Promise<any[]>;
     findOneByEmail(email: string): Promise<any>;
     findOne(id: string): Promise<any>;
-    create(createUserDto: CreateUserDto): Promise<any>;
+    create(files: Express.Multer.File[], createUserDto: CreateUserDto): Promise<any>;
     register(files: Express.Multer.File[], createUserDto: CreateUserDto): Promise<any>;
-    update(id: string, data: any): Promise<any>;
+    update(id: string, files: Express.Multer.File[], data: any): Promise<any>;
     delete(id: string): Promise<any>;
     changePassword(id: string, changePasswordDto: ChangePasswordDto, req: any): Promise<any>;
     resetPassword(body: {

@@ -20,7 +20,7 @@ export declare class UsersService {
     findOne(id: string): Promise<any>;
     findOneByEmail(email: string): Promise<any | null>;
     create(data: any, files?: Express.Multer.File[]): Promise<any>;
-    update(id: string, data: any): Promise<any>;
+    update(id: string, data: any, files?: Express.Multer.File[]): Promise<any>;
     delete(id: string): Promise<any>;
     findAllByProfile(profile: string): Promise<any[]>;
     private generateRandomPassword;
