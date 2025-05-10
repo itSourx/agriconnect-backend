@@ -39,7 +39,7 @@ export class UsersController {
   }
 
   @Post('add/')
-  @UseGuards(AuthGuard)
+  //@UseGuards(AuthGuard)
   @UsePipes(new ValidationPipe())
   @UseInterceptors(
     FilesInterceptor('Photo', 5, {

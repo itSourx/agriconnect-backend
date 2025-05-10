@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateUserDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const class_transformer_1 = require("class-transformer");
 class CreateUserDto {
 }
 exports.CreateUserDto = CreateUserDto;
@@ -39,6 +40,31 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "LastName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Doe',
+        description: 'Le nom de l\'utilisateur à souscrire. ',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "Address", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'Doe',
+        description: 'Le nom de l\'utilisateur à souscrire. ',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "Phone", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: '1990-05-20',
+        description: "La date de naissance de l'utilisateur au format ISO (YYYY-MM-DD).",
+    }),
+    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
+    __metadata("design:type", Date)
+], CreateUserDto.prototype, "BirthDate", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         example: 'doe@example.com',

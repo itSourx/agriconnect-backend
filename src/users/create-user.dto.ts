@@ -1,5 +1,6 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsDate } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer'; // Importez Type ici
 
 
 export class CreateUserDto {
@@ -23,6 +24,28 @@ export class CreateUserDto {
   })
   @IsString()
   LastName: string;
+
+  @ApiProperty({
+  example: 'Doe',
+  description: 'Le nom de l\'utilisateur à souscrire. ',
+  })
+  @IsString()
+  Address: string;
+
+  @ApiProperty({
+    example: 'Doe',
+    description: 'Le nom de l\'utilisateur à souscrire. ',
+  })
+  @IsString()
+  Phone: string;
+
+  @ApiProperty({
+    example: '1990-05-20',
+    description: "La date de naissance de l'utilisateur au format ISO (YYYY-MM-DD).",
+  })
+  @IsDate()
+  @Type(() => Date) // Convertit automatiquement la chaîne en objet Date
+  BirthDate: Date;
 
   @ApiProperty({
     example: 'doe@example.com',
