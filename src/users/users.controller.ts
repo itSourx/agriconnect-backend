@@ -39,7 +39,7 @@ export class UsersController {
   }
 
   @Post('add/')
-  //@UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   @UsePipes(new ValidationPipe())
   @UseInterceptors(
     FilesInterceptor('Photo', 5, {
@@ -124,7 +124,7 @@ async create(
   }
 
   @Post('validate-reset-password')
-  //@UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
+  @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
 async validateResetPassword(
   @Body() body: { email: string; temporaryPassword: string; newPassword: string },
   @Request() req, // Accéder à la requête via @Request()
@@ -139,7 +139,7 @@ async validateResetPassword(
 
   @Post('unlock')
   //@UseGuards(AdminGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
-  @UseGuards()
+  @UseGuards(AuthGuard)
   async unlockUser(@Body() body: { email: string }) {
     const { email } = body;
 
@@ -150,9 +150,9 @@ async validateResetPassword(
     return this.usersService.unlockUser(email);
   }
 
-  @Post('block')
+  @Post('lock')
   //@UseGuards(AuthGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
-  @UseGuards()
+  @UseGuards(AuthGuard)
   async blockUser(@Body() body: { email: string }) {
     const { email } = body;
 

@@ -16,6 +16,7 @@ const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const profiles_service_1 = require("../profiles/profiles.service");
 const blacklist_service_1 = require("../auth/blacklist.service");
+const Airtable = require("airtable");
 const nodemailer = require("nodemailer");
 const gcs_service_1 = require("../google_cloud/gcs.service");
 const fs_1 = require("fs");
@@ -25,9 +26,21 @@ let UsersService = class UsersService {
         this.blacklistService = blacklistService;
         this.profilesService = profilesService;
         this.gcsService = gcsService;
+        this.MAX_FAILED_ATTEMPTS = 3;
+        this.DEACTIVATED_Status = 'Deactivated';
         this.apiKey = process.env.AIRTABLE_API_KEY;
         this.baseId = process.env.AIRTABLE_BASE_ID;
         this.tableName = process.env.AIRTABLE_USERS_TABLE;
+    }
+    initAirtable() {
+        if (!this.base) {
+            if (!this.apiKey || !this.baseId) {
+                throw new Error('Airtable configuration is missing');
+            }
+            const airtable = new Airtable({ apiKey: this.apiKey });
+            this.base = airtable.base(this.baseId);
+        }
+        return this.base;
     }
     getHeaders() {
         return {
@@ -346,8 +359,8 @@ let UsersService = class UsersService {
         if (!user) {
             throw new Error('Aucun utilisateur trouvé avec cet email.');
         }
-        if (user.Status === 'Activated') {
-            throw new Error('Le compte est déjà activé.');
+        if (user.fields.Status === 'Activated') {
+            throw new Error('Le compte de cet utilisateur est déjà activé.');
         }
         try {
             await this.update(user.id, { Status: 'Activated', tentatives_echec: 0 });
@@ -363,8 +376,8 @@ let UsersService = class UsersService {
         if (!user) {
             throw new Error('Aucun utilisateur trouvé avec cet email.');
         }
-        if (user.Status === 'Deactivated') {
-            throw new Error('Le compte est déjà bloqué.');
+        if (user.fields.Status === 'Deactivated') {
+            throw new Error('Le compte de cet utilisateur est déjà bloqué.');
         }
         try {
             await this.update(user.id, { Status: 'Deactivated' });
@@ -372,6 +385,25 @@ let UsersService = class UsersService {
         catch (error) {
             console.error('Erreur lors du blocage du compte :', error);
             throw new Error('Une erreur est survenue lors du blocage du compte.');
+        }
+    }
+    async incrementFailedAttempts(email) {
+        const user = await this.findOneByEmail(email);
+        const newAttempts = (user.fields.tentatives_echec || 0) + 1;
+        if (newAttempts >= 3) {
+            await this.update(user.id, { Status: 'Deactivated', tentatives_echec: newAttempts });
+            throw new Error('Votre compte a été bloqué après 3 tentatives infructueuses.');
+        }
+        await this.update(user.id, { tentatives_echec: newAttempts });
+    }
+    async resetFailedAttempts(email) {
+        try {
+            const user = await this.findOneByEmail(email);
+            await this.update(user.id, { tentatives_echec: 0 });
+            const updatedUser = await this.findOneByEmail(email);
+        }
+        catch (error) {
+            throw error;
         }
     }
 };

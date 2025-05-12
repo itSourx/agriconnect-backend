@@ -47,9 +47,13 @@ export class AuthService {
     }
 
     if (!isPasswordValid) {
+      // Incrémenter les tentatives infructueuses
+      await this.usersService.incrementFailedAttempts(user.fields.email);
+      console.error('Votre compte sera bloqué après 3 tentatives infructueuses ');
       throw new UnauthorizedException('Identifiants incorrects.');
     }
-  
+    // Réinitialiser les tentatives infructueuses en cas de succès
+    await this.usersService.resetFailedAttempts(user.fields.email); 
     
     // Extraire les détails de l'utilisateur
     const sanitizedUser = {
@@ -108,6 +112,8 @@ export class AuthService {
       };
     } catch (error) {
       console.error('Erreur lors de la connexion :', error);
+      // Incrémenter les tentatives infructueuses en cas d'échec
+      await this.usersService.incrementFailedAttempts(user.fields.email);
       throw error; // Relancer l'erreur pour afficher un message générique au client
     }
   }

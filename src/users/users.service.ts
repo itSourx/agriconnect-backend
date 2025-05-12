@@ -5,16 +5,19 @@ import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
 import { BlacklistService } from '../auth/blacklist.service';
 import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
+import * as Airtable from 'airtable'; // Importez Airtable correctement
 import * as nodemailer from 'nodemailer';
 import { GCSService } from '../google_cloud/gcs.service';
 import { unlinkSync } from 'fs';
 import { Storage } from '@google-cloud/storage';
 
-
 dotenv.config();
 
 @Injectable()
 export class UsersService {
+  private readonly MAX_FAILED_ATTEMPTS = 3;
+  private readonly DEACTIVATED_Status = 'Deactivated';
+
   private readonly apiKey = process.env.AIRTABLE_API_KEY;
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
   private readonly tableName = process.env.AIRTABLE_USERS_TABLE;
@@ -26,6 +29,16 @@ export class UsersService {
     private readonly gcsService: GCSService) {}    
 
 
+  private initAirtable() {
+    if (!this.base) {
+      if (!this.apiKey || !this.baseId) {
+        throw new Error('Airtable configuration is missing');
+      }
+      const airtable = new Airtable({ apiKey: this.apiKey });
+      this.base = airtable.base(this.baseId);
+    }
+    return this.base;
+  }
 
   private getHeaders() {
     return {
@@ -499,8 +512,8 @@ async unlockUser(email: string) {
   }
 
   // Étape 2 : Vérifier si le compte est déjà activé
-  if (user.Status === 'Activated') {
-    throw new Error('Le compte est déjà activé.');
+  if (user.fields.Status === 'Activated') {
+    throw new Error('Le compte de cet utilisateur est déjà activé.');
   }
 
   try {
@@ -527,8 +540,8 @@ async blockUser(email: string): Promise<void> {
   }
 
   // Étape 2 : Vérifier si le compte est déjà bloqué
-  if (user.Status === 'Deactivated') {
-    throw new Error('Le compte est déjà bloqué.');
+  if (user.fields.Status === 'Deactivated') {
+    throw new Error('Le compte de cet utilisateur est déjà bloqué.');
   }
 
   try {
@@ -541,4 +554,38 @@ async blockUser(email: string): Promise<void> {
   }
 }
 
+  async incrementFailedAttempts(email: string): Promise<void> {
+    //try {
+      //const base = this.initAirtable();
+      const user = await this.findOneByEmail(email);
+
+      const newAttempts = (user.fields.tentatives_echec || 0) + 1;
+      if (newAttempts >= 3) {
+        // Bloquer le compte
+        await this.update(user.id, { Status: 'Deactivated', tentatives_echec: newAttempts });
+        throw new Error('Votre compte a été bloqué après 3 tentatives infructueuses.');
+      }
+
+      // Mettre à jour le nombre de tentatives
+      await this.update(user.id, { tentatives_echec: newAttempts });
+  }
+
+// src/users/users.service.ts
+async resetFailedAttempts(email: string): Promise<void> {
+  try {
+    const user = await this.findOneByEmail(email);
+
+    // Réinitialiser les tentatives infructueuses à 0
+    await this.update(user.id, { tentatives_echec: 0 });
+    
+      // Vérifier que la mise à jour a réussi
+      const updatedUser = await this.findOneByEmail(email);
+      /*if (updatedUser.tentatives_echec !== 0) {
+        throw new Error('Échec de la réinitialisation des tentatives infructueuses.');
+      }*/
+    }
+    catch (error) {
+    throw error; //(`Erreur lors de la réinitialisation des tentatives infructueuses : ${error.message}`);
+    }
+}
 }

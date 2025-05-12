@@ -40,8 +40,11 @@ let AuthService = class AuthService {
             isPasswordValid = await bcrypt.compare(password, user.fields.password);
         }
         if (!isPasswordValid) {
+            await this.usersService.incrementFailedAttempts(user.fields.email);
+            console.error('Votre compte sera bloqué après 3 tentatives infructueuses ');
             throw new common_2.UnauthorizedException('Identifiants incorrects.');
         }
+        await this.usersService.resetFailedAttempts(user.fields.email);
         const sanitizedUser = {
             id: user.id,
             email: user.fields.email || null,
@@ -90,6 +93,7 @@ let AuthService = class AuthService {
         }
         catch (error) {
             console.error('Erreur lors de la connexion :', error);
+            await this.usersService.incrementFailedAttempts(user.fields.email);
             throw error;
         }
     }

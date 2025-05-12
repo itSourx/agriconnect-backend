@@ -1328,57 +1328,6 @@ async getOrderPayments(orderId: string): Promise<any> {
   }
 
   // Méthode pour extraire les clients uniques à partir des commandes retournées par getOrdersByFarmer()
-  /*async getFarmerClients(farmerId: string): Promise<any> {
-    try {
-      // Récupérer les commandes de l'agriculteur
-      const farmerOrders = await this.getOrdersByFarmer(farmerId);
-  
-      console.log('Commandes récupérées pour l\'agriculteur :', JSON.stringify(farmerOrders, null, 2));
-  
-      // Initialiser une Map pour stocker les clients et leurs statistiques
-      const clientStats = new Map();
-  
-      farmerOrders.forEach((order, index) => {
-        console.log(`Traitement de la commande #${index + 1} :`, order);
-  
-        // Vérifier que l'ordre et ses champs existent
-        if (!order || !Array.isArray(order.buyerName) || !Array.isArray(order.buyerEmail)) {
-          console.warn('Commande invalide ignorée :', order);
-          return;
-        }
-  
-        const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
-        const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
-        const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
-  
-        console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
-  
-        if (buyerName && buyerEmail) {
-          // Si le client existe déjà dans la Map, incrémenter son compteur de commandes et cumuler le montant
-          if (clientStats.has(buyerEmail)) {
-            const client = clientStats.get(buyerEmail);
-            client.orderCount += 1;
-            client.totalSpent += totalAmount;
-          } else {
-            // Sinon, ajouter le client avec un compteur initialisé à 1 et le montant initial
-            clientStats.set(buyerEmail, {
-              buyerName,
-              buyerEmail,
-              orderCount: 1,
-              totalSpent: totalAmount,
-            });
-          }
-        }
-      });
-  
-      // Convertir la Map en tableau avant de retourner les données
-      return Array.from(clientStats.values());
-    } catch (error) {
-      console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
-      throw error; // Propager l'erreur telle quelle
-    }
-  }*/
-
     async getFarmerClients(farmerId: string): Promise<any> {
       try {
         // Récupérer les commandes de l'agriculteur
@@ -1451,9 +1400,9 @@ async getOrderPayments(orderId: string): Promise<any> {
               if (!client.firstOrderDate || new Date(order.createdDate) < new Date(client.firstOrderDate)) {
                 client.firstOrderDate = order.createdDate;
               }
-              if (!client.lastOrderDate || new Date(order.statusDate) > new Date(client.lastOrderDate)) {
+              /*if (!client.lastOrderDate || new Date(order.statusDate) > new Date(client.lastOrderDate)) {
                 client.lastOrderDate = order.createdDate;
-              }
+              }*/
     
               // Mettre à jour le statut des commandes
               if (order.status === 'pending') {
@@ -1498,7 +1447,7 @@ async getOrderPayments(orderId: string): Promise<any> {
                 orderCount: 1,
                 totalSpent: totalAmount,
                 firstOrderDate: order.createdDate,
-                lastOrderDate: order.createdDate,
+                //lastOrderDate: order.createdDate,
                 products: products,
                 statusDistribution: {
                   pending: order.status === 'pending' ? 1 : 0,

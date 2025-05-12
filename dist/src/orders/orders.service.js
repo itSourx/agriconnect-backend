@@ -748,9 +748,6 @@ let OrdersService = class OrdersService {
                         if (!client.firstOrderDate || new Date(order.createdDate) < new Date(client.firstOrderDate)) {
                             client.firstOrderDate = order.createdDate;
                         }
-                        if (!client.lastOrderDate || new Date(order.statusDate) > new Date(client.lastOrderDate)) {
-                            client.lastOrderDate = order.createdDate;
-                        }
                         if (order.status === 'pending') {
                             client.statusDistribution.pending += 1;
                         }
@@ -791,7 +788,6 @@ let OrdersService = class OrdersService {
                             orderCount: 1,
                             totalSpent: totalAmount,
                             firstOrderDate: order.createdDate,
-                            lastOrderDate: order.createdDate,
                             products: products,
                             statusDistribution: {
                                 pending: order.status === 'pending' ? 1 : 0,

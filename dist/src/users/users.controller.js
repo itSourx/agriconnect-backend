@@ -108,6 +108,7 @@ __decorate([
 ], UsersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)('add/'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UsePipes)(new common_1.ValidationPipe()),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('Photo', 5, {
         storage: (0, multer_1.diskStorage)({
@@ -186,6 +187,7 @@ __decorate([
 ], UsersController.prototype, "resetPassword", null);
 __decorate([
     (0, common_1.Post)('validate-reset-password'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
@@ -194,15 +196,15 @@ __decorate([
 ], UsersController.prototype, "validateResetPassword", null);
 __decorate([
     (0, common_1.Post)('unlock'),
-    (0, common_1.UseGuards)(),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "unlockUser", null);
 __decorate([
-    (0, common_1.Post)('block'),
-    (0, common_1.UseGuards)(),
+    (0, common_1.Post)('lock'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

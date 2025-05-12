@@ -5,11 +5,14 @@ export declare class UsersService {
     private readonly blacklistService;
     private readonly profilesService;
     private readonly gcsService;
+    private readonly MAX_FAILED_ATTEMPTS;
+    private readonly DEACTIVATED_Status;
     private readonly apiKey;
     private readonly baseId;
     private readonly tableName;
     private base;
     constructor(blacklistService: BlacklistService, profilesService: ProfilesService, gcsService: GCSService);
+    private initAirtable;
     private getHeaders;
     private getUrl;
     private verifyPassword;
@@ -34,4 +37,6 @@ export declare class UsersService {
         message: string;
     }>;
     blockUser(email: string): Promise<void>;
+    incrementFailedAttempts(email: string): Promise<void>;
+    resetFailedAttempts(email: string): Promise<void>;
 }
