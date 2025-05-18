@@ -10,7 +10,7 @@ export declare class ProductsService {
     constructor(usersService: UsersService, gcsService: GCSService);
     private getHeaders;
     private getUrl;
-    findAll(page?: number, perPage?: number): Promise<any[]>;
+    findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     search(query: string): Promise<any[]>;
     create(data: any, files?: Express.Multer.File[]): Promise<any>;

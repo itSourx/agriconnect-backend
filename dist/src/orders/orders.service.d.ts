@@ -10,7 +10,7 @@ export declare class OrdersService {
     constructor(productsService: ProductsService, usersService: UsersService);
     private getHeaders;
     private getUrl;
-    findAll(page?: number, perPage?: number): Promise<any[]>;
+    findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     create(data: any): Promise<any>;
     update(id: string, data: any): Promise<any>;

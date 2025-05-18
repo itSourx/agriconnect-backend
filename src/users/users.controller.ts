@@ -19,6 +19,16 @@ export class UsersController {
   }
 
 
+  @Get('superadmin')
+  async getSuperAdmin() {
+    try {
+      const superAdmin = await this.usersService.getSuperAdmin();
+      return superAdmin;
+    } catch (error) {
+      console.error('Erreur dans le contrôleur :', error.message);
+      throw error;
+    }
+  }
 
     // Endpoint pour récupérer tous les produits par profile
     @Get('by-profile/:profile')

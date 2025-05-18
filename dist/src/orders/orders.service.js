@@ -38,16 +38,29 @@ let OrdersService = class OrdersService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
-    async findAll(page = 1, perPage = 10) {
-        const offset = (page - 1) * perPage;
-        const response = await axios_1.default.get(this.getUrl(), {
-            headers: this.getHeaders(),
-            params: {
-                pageSize: perPage,
-                offset: offset > 0 ? offset.toString() : undefined,
-            },
-        });
-        return response.data.records;
+    async findAll() {
+        try {
+            console.log('Récupération de tous les enregistrements...');
+            let allRecords = [];
+            let offset = undefined;
+            do {
+                const response = await axios_1.default.get(this.getUrl(), {
+                    headers: this.getHeaders(),
+                    params: {
+                        pageSize: 200,
+                        offset: offset,
+                    },
+                });
+                allRecords = allRecords.concat(response.data.records);
+                offset = response.data.offset;
+            } while (offset);
+            console.log(`Nombre total d'enregistrements récupérés : ${allRecords.length}`);
+            return allRecords;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des enregistrements :', error.message);
+            throw error;
+        }
     }
     async findOne(id) {
         try {
@@ -255,12 +268,14 @@ let OrdersService = class OrdersService {
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
+            const compteOwo = farmer.fields.compteOwo || 'Email inconnu';
             const totalAmount = price * quantity;
             if (!farmerPayments[farmerId]) {
                 farmerPayments[farmerId] = {
                     farmerId,
                     name: name,
                     email: farmerEmail,
+                    compteOwo: compteOwo,
                     totalAmount: 0,
                     totalProducts: 0,
                     products: [],

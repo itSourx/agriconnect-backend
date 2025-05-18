@@ -21,29 +21,6 @@ interface UpdatedFields {
   farmerPayments?: string; // Champ facultatif pour farmerPayments
 }
 // Définissez manuellement les types si nécessaire
-/*interface Content {
-  [key: string]: any;
-}
-interface ContentColumns extends Content {
-  columns: Content[];
-}
-interface ContentStack extends Content {
-  stack: Content[];
-}
-interface ContentTable extends Content {
-  table: Table;
-}
-interface ContentImage extends Content {
-  image: string;
-  width?: number;
-  height?: number;
-}
-interface Table {
-  [key: string]: any;
-}*/
-//type PdfCell = Content & { colSpan?: number };
-
-// Déclaration manuelle des types nécessaires
 interface Content {
   text?: string;
   style?: string;
@@ -97,7 +74,14 @@ interface ProductData {
   quantity: number;
   category: string;
 }
-
+interface OrderData {
+  buyerId: string;
+  products: Array<{ id: string; quantity: number }>;
+  pin: string; // PIN de paiement
+  otpCode: string; // Code OTP
+  paymentReason?: string; // Optionnel
+  //buyerEmail?: string; // Optionnel
+}
 
 @Injectable()
 export class OrdersService {
@@ -124,7 +108,7 @@ export class OrdersService {
   }
 
   // Récupérer toutes les commandes
-  async findAll(page = 1, perPage = 10): Promise<any[]> {
+  /*async findAll(page = 1, perPage = 10): Promise<any[]> {
     const offset = (page - 1) * perPage;
     const response = await axios.get(this.getUrl(), {
       headers: this.getHeaders(),
@@ -134,7 +118,39 @@ export class OrdersService {
       },
     });
     return response.data.records;
+  }*/
+
+  async findAll(): Promise<any[]> {
+  try {
+    console.log('Récupération de tous les enregistrements...');
+
+    let allRecords: any[] = [];
+    let offset: string | undefined = undefined;
+
+    do {
+      // Effectuer une requête pour récupérer une page d'enregistrements
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          pageSize: 200, // Limite maximale par requête
+          offset: offset,
+        },
+      });
+
+      // Ajouter les enregistrements de la page actuelle à la liste complète
+      allRecords = allRecords.concat(response.data.records);
+
+      // Mettre à jour l'offset pour la prochaine requête
+      offset = response.data.offset;
+    } while (offset); // Continuer tant qu'il y a un offset
+
+    console.log(`Nombre total d'enregistrements récupérés : ${allRecords.length}`);
+    return allRecords;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des enregistrements :', error.message);
+    throw error;
   }
+}
   // Récupérer une commande par ID
   async findOne(id: string): Promise<any> {
     try {
@@ -146,6 +162,102 @@ export class OrdersService {
       throw new Error('Commande introuvable.');
     }
   }
+
+/*async create(data: any): Promise<any> {
+  try {
+    // 1. Calcul du montant total avant taxe
+    let totalBeforeTax = 0;
+    for (const product of data.products) {
+      const productRecord = await this.productsService.findOne(product.id);
+      totalBeforeTax += productRecord.fields.price * product.quantity;
+    }
+
+    // 2. Application de la taxe de 18%
+    const taxAmount = totalBeforeTax * 0.18;
+    const totalWithTax = totalBeforeTax + taxAmount;
+
+    // 3. Récupération des comptes
+    const superAdmin = await this.usersService.getSuperAdmin();
+    if (!superAdmin?.fields.compteOwo) {
+      throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
+    }
+
+    // 4. Étape 2 - redirection vers la page de paiement
+    const paymentResponse = await axios.post(
+      'http://localhost:3000/transactions/valider-payment',
+      {
+        marchand_numero_compte: superAdmin.numero_compte,
+      }
+    );
+
+    if (!paymentResponse.data?.transaction_id) {
+      throw new Error('Réponse de paiement invalide - référence manquante');
+    }
+
+    // 5. Création de la commande après paiement validé
+    const formattedData = {
+      buyer: data.buyerId,
+      products: data.products.map(product => product.id),
+      totalBeforeTax: totalBeforeTax, // Nouveau champ
+      taxAmount: taxAmount, // Nouveau champ
+      totalPrice: totalWithTax,
+      Qty: data.products.map(product => product.quantity).join(' , '),
+      farmerPayments: '',
+      orderNumber: data.orderNumber || this.generateOrderNumber(),
+      paymentStatus: 'PAID',
+      paymentReference: paymentResponse.data.transaction_id,
+      paymentDetails: {
+        taxRate: '18%',
+        paymentMethod: 'OwoPay',
+        initResponse: paymentInitResponse.data,
+        paymentResponse: paymentResponse.data
+      }
+    };
+
+    // Calcul des paiements agriculteurs
+    const productIds = data.products.map(product => product.id);
+    const quantities = data.products.map(product => product.quantity);
+    const farmerPayments = await this.calculateFarmerPayments(productIds, quantities);
+    formattedData.farmerPayments = JSON.stringify(farmerPayments);
+
+    // Enregistrement dans Airtable
+    const response = await axios.post(
+      this.getUrl(),
+      { records: [{ fields: formattedData }] },
+      { headers: this.getHeaders() }
+    );
+
+    // Envoi de facture
+    const createdOrder = response.data.records[0];
+    if (createdOrder.fields.buyerEmail) {
+      await this.sendInvoiceByEmail(createdOrder.id, createdOrder.fields.buyerEmail);
+    }
+
+    return {
+      order: createdOrder,
+      payment: {
+        beforeTax: totalBeforeTax,
+        taxAmount: taxAmount,
+        totalPaid: totalWithTax,
+        transactionId: paymentValidationResponse.data.transaction_id,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+  } catch (error) {
+    console.error('Erreur lors du processus de commande:', {
+      error: error.response?.data || error.message,
+      //stack: error.stack
+    });
+
+    throw new Error(`Échec de la commande: ${error.message}`);
+  }
+}
+
+// Méthode helper pour générer un numéro de commande
+private generateOrderNumber(): string {
+  return `CMD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+}*/
 
       async create(data: any): Promise<any> {
         try {
@@ -323,16 +435,6 @@ export class OrdersService {
             products = [products];
           }
 
-          /*if (typeof mesurements === 'string') {
-            try {
-              mesurements = JSON.parse(mesurements);
-            } catch (error) {
-              mesurements = [mesurements];
-            }
-          } else if (!Array.isArray(mesurements)) {
-            mesurements = [mesurements];
-          }*/
-    
           if (typeof quantities === 'string') {
             try {
               quantities = JSON.parse(quantities); // Convertir la chaîne JSON en tableau
@@ -441,6 +543,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const farmer = await this.usersService.findOne(farmerId);
     const name = farmer.fields.name || 'Nom inconnu';
     const farmerEmail = farmer.fields.email || 'Email inconnu';
+    const compteOwo = farmer.fields.compteOwo || 'Email inconnu';
 
 
     // Calculer le montant total pour cet agriculteur
@@ -452,6 +555,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
         farmerId,
         name: name, // Nom de l'agriculteur
         email: farmerEmail, // Email de l'agriculteur
+        compteOwo: compteOwo,
         totalAmount: 0,
         totalProducts: 0, // Nouveau paramètre : nombre de produits distincts
         products: [],

@@ -38,7 +38,7 @@ export class ProductsService {
   }
 
   
-  async findAll(page = 1, perPage = 20): Promise<any[]> {
+  /*async findAll(page = 1, perPage = 21): Promise<any[]> {
     const offset = (page - 1) * perPage;
     const response = await axios.get(this.getUrl(), {
       headers: this.getHeaders(),
@@ -47,8 +47,42 @@ export class ProductsService {
         offset: offset > 0 ? offset.toString() : undefined,
       },
     });
+    console.error('Données de produits chargées:', response);
     return response.data.records;
   }
+  */
+
+async findAll(): Promise<any[]> {
+  try {
+    console.log('Récupération de tous les enregistrements...');
+
+    let allRecords: any[] = [];
+    let offset: string | undefined = undefined;
+
+    do {
+      // Effectuer une requête pour récupérer une page d'enregistrements
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          pageSize: 200, // Limite maximale par requête
+          offset: offset,
+        },
+      });
+
+      // Ajouter les enregistrements de la page actuelle à la liste complète
+      allRecords = allRecords.concat(response.data.records);
+
+      // Mettre à jour l'offset pour la prochaine requête
+      offset = response.data.offset;
+    } while (offset); // Continuer tant qu'il y a un offset
+
+    console.log(`Nombre total d'enregistrements récupérés : ${allRecords.length}`);
+    return allRecords;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des enregistrements :', error.message);
+    throw error;
+  }
+}
   
   async findOne(id: string): Promise<any> {
     const response = await axios.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });

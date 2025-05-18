@@ -36,16 +36,29 @@ let ProductsService = ProductsService_1 = class ProductsService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
-    async findAll(page = 1, perPage = 20) {
-        const offset = (page - 1) * perPage;
-        const response = await axios_1.default.get(this.getUrl(), {
-            headers: this.getHeaders(),
-            params: {
-                pageSize: perPage,
-                offset: offset > 0 ? offset.toString() : undefined,
-            },
-        });
-        return response.data.records;
+    async findAll() {
+        try {
+            console.log('Récupération de tous les enregistrements...');
+            let allRecords = [];
+            let offset = undefined;
+            do {
+                const response = await axios_1.default.get(this.getUrl(), {
+                    headers: this.getHeaders(),
+                    params: {
+                        pageSize: 200,
+                        offset: offset,
+                    },
+                });
+                allRecords = allRecords.concat(response.data.records);
+                offset = response.data.offset;
+            } while (offset);
+            console.log(`Nombre total d'enregistrements récupérés : ${allRecords.length}`);
+            return allRecords;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des enregistrements :', error.message);
+            throw error;
+        }
     }
     async findOne(id) {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });

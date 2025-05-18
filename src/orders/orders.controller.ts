@@ -31,13 +31,7 @@ export class OrdersController {
   async findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);
   }
-
-    /*@Post()
-    @UsePipes(new ValidationPipe())
-    async create(@Body() createOrderDto: CreateOrderDto) {
-      return this.ordersService.create(createOrderDto);
-    }*/
-
+  
     @Post()
     @UsePipes(new ValidationPipe())
     @UseGuards(AuthGuard)
@@ -90,6 +84,8 @@ export class OrdersController {
       throw new Error(error.message);
     }
   }
+
+  
   @Get('byfarmer/:farmerId')
   @UseGuards(AuthGuard)
   async getOrdersByFarmer(@Param('farmerId') farmerId: string, @Request() req) {

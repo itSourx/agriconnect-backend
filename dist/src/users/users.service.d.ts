@@ -5,8 +5,6 @@ export declare class UsersService {
     private readonly blacklistService;
     private readonly profilesService;
     private readonly gcsService;
-    private readonly MAX_FAILED_ATTEMPTS;
-    private readonly DEACTIVATED_Status;
     private readonly apiKey;
     private readonly baseId;
     private readonly tableName;
@@ -19,8 +17,10 @@ export declare class UsersService {
     private hashPassword;
     changePassword(userId: string, oldPassword: string, newPassword: string, token: string): Promise<any>;
     private logout;
-    findAll(page?: number, perPage?: number): Promise<any[]>;
+    findAll(): Promise<any[]>;
     findUsersByProfile(profileId: string): Promise<any[]>;
+    getSuperAdmin(): Promise<any>;
+    checkIfSuperAdminExists(): Promise<boolean>;
     findOne(id: string): Promise<any>;
     findOneByEmail(email: string): Promise<any | null>;
     create(data: any, files?: Express.Multer.File[]): Promise<any>;

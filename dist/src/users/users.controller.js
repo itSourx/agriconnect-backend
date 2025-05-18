@@ -27,6 +27,16 @@ let UsersController = class UsersController {
     async findAll() {
         return this.usersService.findAll();
     }
+    async getSuperAdmin() {
+        try {
+            const superAdmin = await this.usersService.getSuperAdmin();
+            return superAdmin;
+        }
+        catch (error) {
+            console.error('Erreur dans le contrôleur :', error.message);
+            throw error;
+        }
+    }
     async findAllByProfile(profile) {
         return this.usersService.findAllByProfile(profile);
     }
@@ -85,6 +95,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('superadmin'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "getSuperAdmin", null);
 __decorate([
     (0, common_1.Get)('by-profile/:profile'),
     __param(0, (0, common_1.Param)('profile')),

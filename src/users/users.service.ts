@@ -15,8 +15,6 @@ dotenv.config();
 
 @Injectable()
 export class UsersService {
-  private readonly MAX_FAILED_ATTEMPTS = 3;
-  private readonly DEACTIVATED_Status = 'Deactivated';
 
   private readonly apiKey = process.env.AIRTABLE_API_KEY;
   private readonly baseId = process.env.AIRTABLE_BASE_ID;
@@ -116,7 +114,7 @@ export class UsersService {
     await this.blacklistService.add(token);
   }
 
-  async findAll(page = 1, perPage = 20): Promise<any[]> {
+  /*async findAll(page = 1, perPage = 20): Promise<any[]> {
     const offset = (page - 1) * perPage;
     const response = await axios.get(this.getUrl(), {
       headers: this.getHeaders(),
@@ -126,6 +124,37 @@ export class UsersService {
       },
     });
     return response.data.records;
+  }*/
+  async findAll(): Promise<any[]> {
+    try {
+      console.log('Récupération de tous les enregistrements...');
+
+      let allRecords: any[] = [];
+      let offset: string | undefined = undefined;
+
+      do {
+        // Effectuer une requête pour récupérer une page d'enregistrements
+        const response = await axios.get(this.getUrl(), {
+          headers: this.getHeaders(),
+          params: {
+            pageSize: 100, // Limite maximale par requête
+            offset: offset,
+          },
+        });
+
+        // Ajouter les enregistrements de la page actuelle à la liste complète
+        allRecords = allRecords.concat(response.data.records);
+
+        // Mettre à jour l'offset pour la prochaine requête
+        offset = response.data.offset;
+      } while (offset); // Continuer tant qu'il y a un offset
+
+      console.log(`Nombre total d'enregistrements récupérés : ${allRecords.length}`);
+      return allRecords;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des enregistrements :', error.message);
+      throw error;
+    }
   }
 
 // Récupérer tous les utilisateurs filtrés par profil
@@ -142,6 +171,51 @@ export class UsersService {
     } catch (error) {
       console.error('Erreur lors de la récupération des utilisateurs par profil :', error);
       throw new Error('Impossible de récupérer les utilisateurs.');
+    }
+  }
+  async getSuperAdmin(): Promise<any> {
+    try {
+      // Interroger l'API pour récupérer l'utilisateur avec le profil SUPERADMIN
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          filterByFormula: `{profile} = 'SUPERADMIN'`, // Filtrer par profil
+          maxRecords: 1, // Limiter à un seul résultat
+        },
+      });
+
+      const users = response.data.records; // Extraire les utilisateurs
+
+      // Vérifier si un utilisateur a été trouvé
+      if (!users || users.length === 0) {
+        throw new Error('Aucun utilisateur avec le profil SUPERADMIN trouvé.');
+      }
+
+      // Retourner les détails du premier utilisateur trouvé
+      return users[0];
+    } catch (error) {
+      console.error('Erreur lors de la recherche du superadmin :', error.message);
+      throw new Error('Impossible de trouver le superadmin.');
+    }
+  }
+  async checkIfSuperAdminExists(): Promise<boolean> {
+    try {
+      // Interroger l'API pour rechercher des utilisateurs avec le profil SUPERADMIN
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          filterByFormula: `{profile} = 'SUPERADMIN'`, // Filtrer par profile
+          maxRecords: 1, // Limiter à un seul résultat
+        },
+      });
+
+      const users = response.data.records; // Extraire les utilisateurs
+
+      // Retourner true si au moins un SUPERADMIN existe
+      return users && users.length > 0;
+    } catch (error) {
+      console.error('Erreur lors de la vérification du SUPERADMIN :', error.message);
+      throw new Error('Impossible de vérifier l\'existence du SUPERADMIN.');
     }
   }
 
@@ -192,6 +266,13 @@ export class UsersService {
     if (existingUser) {
       throw new ConflictException('Un utilisateur avec cet email existe déjà.');
     }
+      // Vérifier si l'utilisateur essaie de créer un SUPERADMIN
+      if (data.profileType === 'SUPERADMIN') {
+        const superAdminExists = await this.checkIfSuperAdminExists();
+        if (superAdminExists) {
+          throw new Error('Un utilisateur avec le profile SUPERADMIN existe déjà.');
+        }
+      }
     // Générer une référence aléatoire de 5 chiffres
     const reference = Math.floor(1000000 + Math.random() * 9000000).toString();
     data.reference = reference; // Ajouter la référence aux données
@@ -273,6 +354,9 @@ export class UsersService {
       if (data.ifu && typeof data.ifu === 'string') {
         data.ifu = parseInt(data.ifu); // Conversion en nombre
       }
+      if (data.compteOwo && typeof data.compteOwo === 'string') {
+        data.compteOwo = parseInt(data.compteOwo); // Conversion en nombre
+      }
       // Si profileType est fourni, récupérez l'ID du profil correspondant
       if (data.profileType) {
         const profile = await this.profilesService.findOneByType(data.profileType);
@@ -323,7 +407,8 @@ export class UsersService {
         { fields: data },
         { headers: this.getHeaders() }
       );
-  
+      
+      console.error('Données de mise à jour de l’utilisateur :', data);
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l’utilisateur :', error);
