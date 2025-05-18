@@ -47,7 +47,7 @@ let OrdersService = class OrdersService {
                 const response = await axios_1.default.get(this.getUrl(), {
                     headers: this.getHeaders(),
                     params: {
-                        pageSize: 200,
+                        pageSize: 100,
                         offset: offset,
                     },
                 });

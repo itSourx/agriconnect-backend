@@ -132,7 +132,7 @@ export class OrdersService {
       const response = await axios.get(this.getUrl(), {
         headers: this.getHeaders(),
         params: {
-          pageSize: 200, // Limite maximale par requête
+          pageSize: 100, // Limite maximale par requête
           offset: offset,
         },
       });

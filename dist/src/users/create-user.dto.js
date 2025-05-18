@@ -82,4 +82,12 @@ __decorate([
     (0, class_validator_1.MinLength)(8),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'securepassword123',
+        description: 'Définirle pays de l\'utilisateur. ',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "country", void 0);
 //# sourceMappingURL=create-user.dto.js.map

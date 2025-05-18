@@ -61,4 +61,11 @@ export class CreateUserDto {
   @IsString()
   @MinLength(8)
   password: string;
+
+  @ApiProperty({
+  example: 'securepassword123',
+  description: 'Définirle pays de l\'utilisateur. ',
+  })
+  @IsString()
+  country: string;
 }

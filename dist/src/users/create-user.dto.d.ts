@@ -7,4 +7,5 @@ export declare class CreateUserDto {
     BirthDate: Date;
     profileType: string;
     password: string;
+    country: string;
 }
