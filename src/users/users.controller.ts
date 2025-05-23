@@ -139,7 +139,7 @@ async create(
   }
 
   @Post('validate-reset-password')
-  @UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
+  //@UseGuards(AuthGuard) // Protéger l'endpoint avec AuthGuard
 async validateResetPassword(
   @Body() body: { email: string; temporaryPassword: string; newPassword: string },
   @Request() req, // Accéder à la requête via @Request()
