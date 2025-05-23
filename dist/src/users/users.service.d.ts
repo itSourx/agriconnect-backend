@@ -28,7 +28,7 @@ export declare class UsersService {
     delete(id: string): Promise<any>;
     findAllByProfile(profile: string): Promise<any[]>;
     private generateRandomPassword;
-    resetPassword(email: string): Promise<any>;
+    resetPassword(email: string, token: string): Promise<any>;
     private sendPasswordResetEmail;
     validateResetPassword(email: string, temporaryPassword: string, newPassword: string, token: string): Promise<any>;
     getProfileById(id: string): Promise<any>;

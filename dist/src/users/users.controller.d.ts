@@ -16,7 +16,7 @@ export declare class UsersController {
     changePassword(id: string, changePasswordDto: ChangePasswordDto, req: any): Promise<any>;
     resetPassword(body: {
         email: string;
-    }): Promise<any>;
+    }, req: any): Promise<any>;
     validateResetPassword(body: {
         email: string;
         temporaryPassword: string;

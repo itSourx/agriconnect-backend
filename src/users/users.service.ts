@@ -456,7 +456,7 @@ export class UsersService {
   }
 
   // Réinitialiser le mot de passe d'un utilisateur
-  async resetPassword(email: string): Promise<any> {
+  async resetPassword(email: string, token: string): Promise<any> {
     // Vérifier si l'utilisateur existe
     const user = await this.findOneByEmail(email);
 
@@ -552,7 +552,6 @@ export class UsersService {
         { headers: this.getHeaders() }
       );
   
-      //return { message: 'Mot de passe mis à jour avec succès.' };
       // Appeler la fonction logout pour déconnecter l'utilisateur
       await this.logout(token);
 
@@ -560,7 +559,7 @@ export class UsersService {
       
     } catch (error) {
       console.error('Erreur lors de la mise à jour du mot de passe :', error);
-      throw new Error('Impossible de mettre à jour le mot de passe.');
+      throw error; //('Impossible de mettre à jour le mot de passe.');
     }
   }
 

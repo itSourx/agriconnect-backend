@@ -270,7 +270,7 @@ private generateOrderNumber(): string {
             Qty: data.products.map(product => product.quantity).join(' , '), // Convertir le tableau en chaîne
             farmerPayments: '', // Ajouter explicitement la propriété farmerPayments
             orderNumber: data.orderNumber,
-            //buyerEmail: data.orderNumber,
+            payStatus: data.PayStatus,
           };
      
           // Calculer le prix total
@@ -278,6 +278,16 @@ private generateOrderNumber(): string {
           for (const product of data.products) {
             const productRecord = await this.productsService.findOne(product.id); // Récupérer le produit depuis Airtable
             totalPrice += productRecord.fields.price * product.quantity;
+          }
+
+          // Application de la taxe de 18%
+          const taxAmount = totalPrice * 0.18;
+          const totalWithTax = totalPrice + taxAmount;
+
+          // Récupération des comptes
+          const superAdmin = await this.usersService.getSuperAdmin();
+          if (!superAdmin?.fields.compteOwo) {
+            throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
           }
           formattedData.totalPrice = totalPrice;
 
@@ -293,6 +303,10 @@ private generateOrderNumber(): string {
       // Générer une référence aléatoire de 5 chiffres
       const orderNumber = Math.floor(10000 + Math.random() * 90000).toString();
       formattedData.orderNumber = orderNumber; // Ajouter la référence aux données
+
+      // Mettre à jour le status du payment
+      const payStatus = "PAID";
+      formattedData.payStatus = payStatus; // Ajouter la référence aux données
       
           console.log('Données formatées pour Airtable :', formattedData);
 

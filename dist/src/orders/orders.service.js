@@ -81,11 +81,18 @@ let OrdersService = class OrdersService {
                 Qty: data.products.map(product => product.quantity).join(' , '),
                 farmerPayments: '',
                 orderNumber: data.orderNumber,
+                payStatus: data.PayStatus,
             };
             let totalPrice = 0;
             for (const product of data.products) {
                 const productRecord = await this.productsService.findOne(product.id);
                 totalPrice += productRecord.fields.price * product.quantity;
+            }
+            const taxAmount = totalPrice * 0.18;
+            const totalWithTax = totalPrice + taxAmount;
+            const superAdmin = await this.usersService.getSuperAdmin();
+            if (!superAdmin?.fields.compteOwo) {
+                throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
             }
             formattedData.totalPrice = totalPrice;
             const productIds = data.products.map(product => product.id);
@@ -94,6 +101,8 @@ let OrdersService = class OrdersService {
             formattedData.farmerPayments = JSON.stringify(farmerPayments);
             const orderNumber = Math.floor(10000 + Math.random() * 90000).toString();
             formattedData.orderNumber = orderNumber;
+            const payStatus = "PAID";
+            formattedData.payStatus = payStatus;
             console.log('Données formatées pour Airtable :', formattedData);
             const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
             const createdOrder = response.data.records[0];

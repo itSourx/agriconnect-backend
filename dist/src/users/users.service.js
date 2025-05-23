@@ -329,7 +329,7 @@ let UsersService = class UsersService {
         }
         return password;
     }
-    async resetPassword(email) {
+    async resetPassword(email, token) {
         const user = await this.findOneByEmail(email);
         if (!user) {
             throw new common_1.NotFoundException('Aucun utilisateur trouvé avec cet email.');
@@ -391,7 +391,7 @@ let UsersService = class UsersService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du mot de passe :', error);
-            throw new Error('Impossible de mettre à jour le mot de passe.');
+            throw error;
         }
     }
     async getProfileById(id) {

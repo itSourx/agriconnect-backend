@@ -63,9 +63,10 @@ let UsersController = class UsersController {
         const token = req.headers.authorization?.split(' ')[1];
         return this.usersService.changePassword(id, oldPassword, newPassword, token);
     }
-    async resetPassword(body) {
+    async resetPassword(body, req) {
         const { email } = body;
-        return this.usersService.resetPassword(email);
+        const token = req.headers.authorization?.split(' ')[1];
+        return this.usersService.resetPassword(email, token);
     }
     async validateResetPassword(body, req) {
         const { email, temporaryPassword, newPassword } = body;
@@ -197,8 +198,9 @@ __decorate([
 __decorate([
     (0, common_1.Post)('reset-password'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "resetPassword", null);
 __decorate([

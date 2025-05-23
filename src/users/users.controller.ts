@@ -127,10 +127,15 @@ async create(
   }
 
   @Post('reset-password')
-  async resetPassword(@Body() body: { email: string }): Promise<any> {
+  async resetPassword(
+    @Body() body: { email: string },
+    @Request() req,): Promise<any> {
     const { email } = body;
 
-    return this.usersService.resetPassword(email);
+    // Extraire le token de l'en-tête Authorization
+    const token = req.headers.authorization?.split(' ')[1];
+
+    return this.usersService.resetPassword(email, token);
   }
 
   @Post('validate-reset-password')
