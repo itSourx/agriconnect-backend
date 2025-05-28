@@ -69,7 +69,7 @@ let OrdersService = class OrdersService {
         }
         catch (error) {
             console.error('Erreur lors de la récupération de la commande :', error.response?.data || error.message);
-            throw new Error('Commande introuvable.');
+            throw error;
         }
     }
     async create(data) {
@@ -81,7 +81,7 @@ let OrdersService = class OrdersService {
                 Qty: data.products.map(product => product.quantity).join(' , '),
                 farmerPayments: '',
                 orderNumber: data.orderNumber,
-                payStatus: data.PayStatus,
+                payStatus: data.payStatus,
             };
             let totalPrice = 0;
             for (const product of data.products) {
@@ -101,8 +101,7 @@ let OrdersService = class OrdersService {
             formattedData.farmerPayments = JSON.stringify(farmerPayments);
             const orderNumber = Math.floor(10000 + Math.random() * 90000).toString();
             formattedData.orderNumber = orderNumber;
-            const payStatus = "PAID";
-            formattedData.payStatus = payStatus;
+            formattedData.payStatus = 'PENDING';
             console.log('Données formatées pour Airtable :', formattedData);
             const response = await axios_1.default.post(this.getUrl(), { records: [{ fields: formattedData }] }, { headers: this.getHeaders() });
             const createdOrder = response.data.records[0];
@@ -156,6 +155,21 @@ let OrdersService = class OrdersService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour de la commande :', error.response?.data || error.message);
+            throw error;
+        }
+    }
+    async updateFarmerPayment(id, data) {
+        try {
+            console.log('Données reçues dans le service :', data);
+            if (!data || !data.farmerPayment) {
+                throw new Error('Le champ farmerPayment est manquant ou invalide.');
+            }
+            const response = await axios_1.default.patch(`${this.getUrl()}/${id}`, { fields: data }, { headers: this.getHeaders() });
+            console.log('Réponse d\'Airtable après mise à jour :', response.data);
+            return response.data;
+        }
+        catch (error) {
+            console.error('Erreur lors de la mise à jour de la commande :', error.message);
             throw error;
         }
     }
@@ -277,7 +291,7 @@ let OrdersService = class OrdersService {
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
-            const compteOwo = farmer.fields.compteOwo || 'Email inconnu';
+            const compteOwo = farmer.fields.compteOwo || 'NOT SET';
             const totalAmount = price * quantity;
             if (!farmerPayments[farmerId]) {
                 farmerPayments[farmerId] = {

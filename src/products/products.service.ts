@@ -132,6 +132,20 @@ async findAll(): Promise<any[]> {
         throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
       }
 
+      const profile = user.fields.profileType[0];
+      if (profile !=='AGRICULTEUR') {
+        throw new Error('Vous n\'êtes pas autorisé(e) à créer un produit.');
+      }
+      console.error('profile de l\'agriculteur récupéré :', profile);
+
+      const compteOwo = user.fields.compteOwo;
+      if (!compteOwo) {
+        throw new Error('Vous devez obligatoirement définir votre compte OwoPay avant de créer de produits.');
+      }
+      console.error('compteOwo de l\'agriculteur récupéré :', compteOwo);
+
+      
+
       // Formatez le champ "user" comme un tableau d'IDs
       data.user = [user.id];
       delete data.email; // Supprimez email car il n'est pas stocké directement
@@ -210,6 +224,13 @@ async findAll(): Promise<any[]> {
         data.quantity = parseInt(data.quantity); // Conversion en nombre
       }
 
+      // Récupérer le produit existante
+      const existingProduct = await this.findOne(id);
+      const compteOwo = existingProduct.fields.compteOwo;
+      if (!compteOwo) {
+        throw new Error('Vous n\'avez toujours pas encore défini votre compte OwoPay.');
+      }
+      console.error('compteOwo de l\'agriculteur récupéré :', compteOwo);
 
       // Gestion des images locales pour le champ Photo
       if (files && files.length > 0) {
@@ -271,7 +292,7 @@ async findAll(): Promise<any[]> {
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour du produit :', error.message);
-      throw new Error('Impossible de mettre à jour le produit.');
+      throw error; //('Impossible de mettre à jour le produit.');
     }
   }
 

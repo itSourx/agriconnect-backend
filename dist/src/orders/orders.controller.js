@@ -39,20 +39,37 @@ let OrdersController = class OrdersController {
     }
     async create(createOrderDto, req) {
         const buyerId = req.user.id;
+        const role = req.user.profile;
+        if (role !== 'ACHETEUR') {
+            throw new Error('Vous n\'êtes pas autorisé(e) à passer une commande.');
+        }
         const orderData = {
             ...createOrderDto,
             buyerId: [buyerId],
         };
         return this.ordersService.create(orderData);
     }
-    async update(id, data) {
+    async update(id, data, req) {
+        if (req.user.profile !== 'ACHETEUR') {
+            throw new Error('Vous n\'êtes pas autorisé(e) à modifier la commande.');
+        }
         return this.ordersService.update(id, data);
+    }
+    async updatePayment(id, data) {
+        console.log('Données reçues dans le contrôleur :', data);
+        return this.ordersService.updateFarmerPayment(id, data);
     }
     async delete(id) {
         return this.ordersService.delete(id);
     }
     async updateStatus(orderId, status, req) {
         try {
+            const userId = req.user.id;
+            const existingOrder = await this.ordersService.findOne(orderId);
+            const farmerId = existingOrder.fields.farmerId[0];
+            if (farmerId !== userId || req.user.profile !== 'ADMIN') {
+                throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
+            }
             return this.ordersService.updateStatus(orderId, status);
         }
         catch (error) {
@@ -192,10 +209,19 @@ __decorate([
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Put)('updateOrder/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
-], OrdersController.prototype, "update", null);
+], OrdersController.prototype, "updatePayment", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
@@ -224,7 +250,6 @@ __decorate([
 ], OrdersController.prototype, "getOrdersByFarmer", null);
 __decorate([
     (0, common_1.Get)('details/:id'),
-    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

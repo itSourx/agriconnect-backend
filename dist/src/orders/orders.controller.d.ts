@@ -9,7 +9,8 @@ export declare class OrdersController {
     findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     create(createOrderDto: CreateOrderDto, req: any): Promise<any>;
-    update(id: string, data: any): Promise<any>;
+    update(id: string, data: any, req: any): Promise<any>;
+    updatePayment(id: string, data: any): Promise<any>;
     delete(id: string): Promise<any>;
     updateStatus(orderId: string, status: string, req: any): Promise<any>;
     getOrdersByFarmer(farmerId: string, req: any): Promise<{

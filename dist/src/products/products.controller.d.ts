@@ -9,8 +9,8 @@ export declare class ProductsController {
     findAllByCategory(category: string): Promise<any[]>;
     delete(id: string): Promise<any>;
     findOne(id: string): Promise<any>;
-    create(files: Express.Multer.File[], data: CreateProductDto): Promise<any>;
-    update(id: string, data: any, files: {
+    create(files: Express.Multer.File[], data: CreateProductDto, req: any): Promise<any>;
+    update(id: string, data: any, req: any, files?: {
         Photo?: Express.Multer.File[];
         Gallery?: Express.Multer.File[];
     }): Promise<any>;

@@ -23,7 +23,7 @@ export class UsersController {
   async getSuperAdmin() {
     try {
       const superAdmin = await this.usersService.getSuperAdmin();
-      return superAdmin;
+      return {compteAdmin:superAdmin.fields.compteOwo};
     } catch (error) {
       console.error('Erreur dans le contrôleur :', error.message);
       throw error;

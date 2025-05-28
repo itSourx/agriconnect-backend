@@ -5,7 +5,9 @@ export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
     findAll(): Promise<any[]>;
-    getSuperAdmin(): Promise<any>;
+    getSuperAdmin(): Promise<{
+        compteAdmin: any;
+    }>;
     findAllByProfile(profile: string): Promise<any[]>;
     findOneByEmail(email: string): Promise<any>;
     findOne(id: string): Promise<any>;

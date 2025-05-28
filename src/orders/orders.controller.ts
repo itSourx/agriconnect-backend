@@ -38,6 +38,11 @@ export class OrdersController {
     async create(@Body() createOrderDto: CreateOrderDto, @Request() req) {
     // Récupérer l'ID de l'utilisateur à partir du token JWT
     const buyerId = req.user.id; // L'ID de l'utilisateur est stocké dans le payload JWT
+    const role = req.user.profile; // Le role de l'utilisateur est stocké dans le payload JWT
+
+    if (role !=='ACHETEUR') {
+      throw new Error('Vous n\'êtes pas autorisé(e) à passer une commande.');
+    }
       // Ajoutez automatiquement l'ID de l'acheteur
       const orderData = {
         ...createOrderDto,
@@ -51,8 +56,20 @@ export class OrdersController {
 
   @Put(':id')
   @UseGuards(AuthGuard)
-  async update(@Param('id') id: string, @Body() data: any) {
+  async update(@Param('id') id: string, @Body() data: any, @Request() req) {
+
+    if (req.user.profile !=='ACHETEUR') {
+      throw new Error('Vous n\'êtes pas autorisé(e) à modifier la commande.');
+    }
+
     return this.ordersService.update(id, data);
+  }
+
+  @Put('updateOrder/:id')
+  //@UseGuards(AuthGuard)
+  async updatePayment(@Param('id') id: string, @Body() data: any) {
+    console.log('Données reçues dans le contrôleur :', data);
+    return this.ordersService.updateFarmerPayment(id, data);
   }
 
   @Delete(':id')
@@ -66,16 +83,16 @@ export class OrdersController {
 ) {
     try {
   // Récupérer l'ID de l'utilisateur authentifié
-  /*const userId = req.user.id;
+  const userId = req.user.id;
 
   // Récupérer la commande existante
   const existingOrder = await this.ordersService.findOne(orderId);
 
   // Vérifier si l'utilisateur est bien l'agriculteur associé à la commande
   const farmerId = existingOrder.fields.farmerId[0];
-  if (farmerId !== userId && req.user.role !== 'ADMIN') {
-    throw new Error('Vous n\'êtes pas autorisé à modifier le statut de cette commande.');
-  }*/
+  if (farmerId !== userId || req.user.profile !== 'ADMIN') {
+    throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
+  }
 
       // Appeler le service pour mettre à jour le statut de la commande
       return this.ordersService.updateStatus(orderId, status);
@@ -104,7 +121,7 @@ export class OrdersController {
   }
 
   @Get('details/:id')
-  @UseGuards(AuthGuard)
+  //@UseGuards(AuthGuard)
   async getOrderPayments(@Param('id') orderId: string) {
     try {
       // Appeler le service pour récupérer les détails des paiements

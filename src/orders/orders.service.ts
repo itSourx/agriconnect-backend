@@ -159,7 +159,7 @@ export class OrdersService {
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération de la commande :', error.response?.data || error.message);
-      throw new Error('Commande introuvable.');
+      throw error; //('Commande introuvable.');
     }
   }
 
@@ -270,7 +270,8 @@ private generateOrderNumber(): string {
             Qty: data.products.map(product => product.quantity).join(' , '), // Convertir le tableau en chaîne
             farmerPayments: '', // Ajouter explicitement la propriété farmerPayments
             orderNumber: data.orderNumber,
-            payStatus: data.PayStatus,
+            payStatus: data.payStatus,
+            //transaction_id: '',
           };
      
           // Calculer le prix total
@@ -305,8 +306,7 @@ private generateOrderNumber(): string {
       formattedData.orderNumber = orderNumber; // Ajouter la référence aux données
 
       // Mettre à jour le status du payment
-      const payStatus = "PAID";
-      formattedData.payStatus = payStatus; // Ajouter la référence aux données
+      formattedData.payStatus = 'PENDING'; 
       
           console.log('Données formatées pour Airtable :', formattedData);
 
@@ -391,7 +391,30 @@ private generateOrderNumber(): string {
     throw  error; //('Impossible de mettre à jour la commande.')
   }
 }
+  async updateFarmerPayment(id: string, data: any): Promise<any> {
+    try {
+      console.log('Données reçues dans le service :', data);
 
+      // Vérifiez que farmerPayment existe et est valide
+      if (!data || !data.farmerPayment) {
+        throw new Error('Le champ farmerPayment est manquant ou invalide.');
+      }
+
+      // Envoyer les données mises à jour à Airtable
+      const response = await axios.patch(
+        `${this.getUrl()}/${id}`,
+        { fields: data },
+        { headers: this.getHeaders() }
+      );
+
+      console.log('Réponse d\'Airtable après mise à jour :', response.data);
+
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la commande :', error.message);
+      throw error; //('Impossible de mettre à jour la commande.');
+    }
+  }
 
   // Supprimer une commande
   async delete(id: string): Promise<any> {
@@ -557,7 +580,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const farmer = await this.usersService.findOne(farmerId);
     const name = farmer.fields.name || 'Nom inconnu';
     const farmerEmail = farmer.fields.email || 'Email inconnu';
-    const compteOwo = farmer.fields.compteOwo || 'Email inconnu';
+    const compteOwo = farmer.fields.compteOwo || 'NOT SET';
 
 
     // Calculer le montant total pour cet agriculteur

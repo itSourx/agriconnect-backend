@@ -98,6 +98,16 @@ let ProductsService = ProductsService_1 = class ProductsService {
             if (!user) {
                 throw new Error(`Cet utilisateur "${data.email}" n'existe pas.`);
             }
+            const profile = user.fields.profileType[0];
+            if (profile !== 'AGRICULTEUR') {
+                throw new Error('Vous n\'êtes pas autorisé(e) à créer un produit.');
+            }
+            console.error('profile de l\'agriculteur récupéré :', profile);
+            const compteOwo = user.fields.compteOwo;
+            if (!compteOwo) {
+                throw new Error('Vous devez obligatoirement définir votre compte OwoPay avant de créer de produits.');
+            }
+            console.error('compteOwo de l\'agriculteur récupéré :', compteOwo);
             data.user = [user.id];
             delete data.email;
         }
@@ -146,6 +156,12 @@ let ProductsService = ProductsService_1 = class ProductsService {
             if (data.quantity && typeof data.quantity === 'string') {
                 data.quantity = parseInt(data.quantity);
             }
+            const existingProduct = await this.findOne(id);
+            const compteOwo = existingProduct.fields.compteOwo;
+            if (!compteOwo) {
+                throw new Error('Vous n\'avez toujours pas encore défini votre compte OwoPay.');
+            }
+            console.error('compteOwo de l\'agriculteur récupéré :', compteOwo);
             if (files && files.length > 0) {
                 const uploadedImages = await Promise.all(files.map(async (file) => {
                     try {
@@ -181,7 +197,7 @@ let ProductsService = ProductsService_1 = class ProductsService {
         }
         catch (error) {
             console.error('Erreur lors de la mise à jour du produit :', error.message);
-            throw new Error('Impossible de mettre à jour le produit.');
+            throw error;
         }
     }
     async delete(id) {

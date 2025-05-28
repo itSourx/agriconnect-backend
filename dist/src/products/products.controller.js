@@ -42,7 +42,7 @@ let ProductsController = ProductsController_1 = class ProductsController {
     async findOne(id) {
         return this.productsService.findOne(id);
     }
-    async create(files, data) {
+    async create(files, data, req) {
         try {
             const product = await this.productsService.create(data, files);
             return product;
@@ -52,12 +52,23 @@ let ProductsController = ProductsController_1 = class ProductsController {
             throw error;
         }
     }
-    async update(id, data, files) {
+    async update(id, data, req, files) {
         try {
             console.log('Données reçues dans le contrôleur :', data);
             console.log('Fichiers uploadés dans le contrôleur :', files);
-            const photoFiles = files.Photo || [];
-            const galleryFiles = files.Gallery || [];
+            const photoFiles = files?.Photo || [];
+            const galleryFiles = files?.Gallery || [];
+            const existingProduct = await this.productsService.findOne(id);
+            const farmerId = existingProduct.fields.farmerId[0];
+            console.error('Identifiiant de l\'agriculteur récupéré :', farmerId);
+            if (req.user.profile !== 'AGRICULTEUR') {
+                throw new Error('Vous n\'êtes pas autorisé(e) à modifier ce produit.');
+            }
+            if (req.user.id !== farmerId) {
+                throw new Error('Ce produit ne vous appartient pas.');
+            }
+            console.error('Identifiant de l\'agriculteur récupéré :', farmerId);
+            console.error('Identifiant récupéré sur le token :', req.user.id);
             const updatedProduct = await this.productsService.update(id, data, photoFiles, galleryFiles);
             return updatedProduct;
         }
@@ -121,12 +132,14 @@ __decorate([
     })),
     __param(0, (0, common_1.UploadedFiles)()),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Array, create_product_dto_1.CreateProductDto]),
+    __metadata("design:paramtypes", [Array, create_product_dto_1.CreateProductDto, Object]),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([
         { name: 'Photo', maxCount: 5 },
         { name: 'Gallery', maxCount: 10 },
@@ -140,9 +153,10 @@ __decorate([
     })),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.UploadedFiles)()),
+    __param(2, (0, common_1.Request)()),
+    __param(3, (0, common_1.UploadedFiles)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "update", null);
 __decorate([

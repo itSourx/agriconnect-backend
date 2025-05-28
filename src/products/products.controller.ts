@@ -64,9 +64,17 @@ export class ProductsController {
   )
   async create(
     @UploadedFiles() files: Express.Multer.File[],
-    @Body() data: CreateProductDto
+    @Body() data: CreateProductDto,
+    @Request() req,
   ) {
     try {
+      /*const userId = await this.usersService.findOneByEmail(data.email);
+
+      if (req.user.id !=='AGRICULTEUR') {
+        throw new Error('Vous n\'êtes pas autorisé(e) à créer de produit pour un autre utilisateur.');
+      }  
+      console.error('profile de l\'agriculteur récupéré :', req.user.id);*/
+
       // Appeler le service pour créer le produit
       const product = await this.productsService.create(data, files);
       return product;
@@ -77,7 +85,7 @@ export class ProductsController {
   }
 
     @Put(':id') 
-    //@UseGuards(AuthGuard)
+    @UseGuards(AuthGuard)
     @UseInterceptors(
       FileFieldsInterceptor(
         [
@@ -97,15 +105,36 @@ export class ProductsController {
     async update(
       @Param('id') id: string, // ID du produit à mettre à jour
       @Body() data: any, // Données textuelles
-      @UploadedFiles() files: { Photo?: Express.Multer.File[], Gallery?: Express.Multer.File[] } // Fichiers uploadés
+      @Request() req,
+      //@UploadedFiles() files: { Photo?: Express.Multer.File[], Gallery?: Express.Multer.File[] } // Fichiers uploadés
+      @UploadedFiles() files?: { Photo?: Express.Multer.File[], Gallery?: Express.Multer.File[] } // Rend le paramètre optionnel
+
     ) {
       try {
         console.log('Données reçues dans le contrôleur :', data);
         console.log('Fichiers uploadés dans le contrôleur :', files);
   
-        const photoFiles = files.Photo || [];
-        const galleryFiles = files.Gallery || [];
-  
+        /*const photoFiles = files.Photo || [];
+        const galleryFiles = files.Gallery || [];*/
+          // Gestion des fichiers optionnels
+      const photoFiles = files?.Photo || [];
+      const galleryFiles = files?.Gallery || [];
+
+      // Récupérer la commande existante
+      const existingProduct = await this.productsService.findOne(id);
+      const farmerId = existingProduct.fields.farmerId[0];
+      console.error('Identifiiant de l\'agriculteur récupéré :', farmerId);
+
+      if (req.user.profile !=='AGRICULTEUR') {
+        throw new Error('Vous n\'êtes pas autorisé(e) à modifier ce produit.');
+      }  
+      
+      if (req.user.id !== farmerId) {
+        throw new Error('Ce produit ne vous appartient pas.');
+      }
+      console.error('Identifiant de l\'agriculteur récupéré :', farmerId);
+      console.error('Identifiant récupéré sur le token :', req.user.id);
+
         // Appeler le service pour mettre à jour le produit
         const updatedProduct = await this.productsService.update(id, data, photoFiles, galleryFiles);
         return updatedProduct;
