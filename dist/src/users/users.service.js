@@ -164,6 +164,9 @@ let UsersService = class UsersService {
     }
     async findOne(id) {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+        if (!response.data) {
+            throw new Error('Utilisateur non trouvé.');
+        }
         return response.data;
     }
     async findOneByEmail(email) {

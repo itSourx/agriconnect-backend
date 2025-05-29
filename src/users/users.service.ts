@@ -222,6 +222,10 @@ export class UsersService {
   // Récupérer un utilisateur par ID
   async findOne(id: string): Promise<any> {
     const response = await axios.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+    if (!response.data) {
+      throw new Error('Utilisateur non trouvé.');
+    }
+
     return response.data;
   }
 

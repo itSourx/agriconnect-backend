@@ -45,4 +45,12 @@ __decorate([
     (0, class_transformer_1.Type)(() => OrderProductDto),
     __metadata("design:type", Array)
 ], CreateOrderDto.prototype, "products", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'recQW2EwO7NhBBUkX',
+        description: 'ID du paiement',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateOrderDto.prototype, "transaction_id", void 0);
 //# sourceMappingURL=create-order.dto.js.map

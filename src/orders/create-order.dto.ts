@@ -32,6 +32,10 @@ export class CreateOrderDto {
   @Type(() => OrderProductDto)
   products: OrderProductDto[];
 
-  /*@IsString()
-  status: string; // Par défaut : "pending"*/
+  @ApiProperty({
+    example: 'recQW2EwO7NhBBUkX',
+    description: 'ID du paiement',
+  })
+  @IsString()
+  transaction_id: string;
 }

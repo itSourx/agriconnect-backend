@@ -271,7 +271,7 @@ private generateOrderNumber(): string {
             farmerPayments: '', // Ajouter explicitement la propriété farmerPayments
             orderNumber: data.orderNumber,
             payStatus: data.payStatus,
-            //transaction_id: '',
+            transaction_id: data.transaction_id,
           };
      
           // Calculer le prix total
@@ -286,10 +286,10 @@ private generateOrderNumber(): string {
           const totalWithTax = totalPrice + taxAmount;
 
           // Récupération des comptes
-          const superAdmin = await this.usersService.getSuperAdmin();
+          /*const superAdmin = await this.usersService.getSuperAdmin();
           if (!superAdmin?.fields.compteOwo) {
             throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
-          }
+          }*/
           formattedData.totalPrice = totalPrice;
 
           const productIds = data.products.map(product => product.id);
@@ -306,7 +306,7 @@ private generateOrderNumber(): string {
       formattedData.orderNumber = orderNumber; // Ajouter la référence aux données
 
       // Mettre à jour le status du payment
-      formattedData.payStatus = 'PENDING'; 
+      formattedData.payStatus = 'PAID'; 
       
           console.log('Données formatées pour Airtable :', formattedData);
 
@@ -1608,4 +1608,5 @@ async getOrderPayments(orderId: string): Promise<any> {
         throw error; // Propager l'erreur telle quelle
       }
     }
+
   }
