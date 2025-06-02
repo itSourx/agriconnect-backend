@@ -85,7 +85,11 @@ async findAll(): Promise<any[]> {
 }
   
   async findOne(id: string): Promise<any> {
-    const response = await axios.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+    const response = await axios.get(`${this.getUrl()}/${id}`, 
+    { headers: this.getHeaders() });
+    if (!response) {
+      throw new Error('Produit non trouvé.');
+    }
     return response.data;
   }
 
@@ -377,6 +381,28 @@ async findAll(): Promise<any[]> {
     } catch (error) {
       console.error('Erreur lors de la recherche des produits par agriculteur :', error.message);
       throw error;
+    }
+  }
+  async findEquivalentProducts(productName: string, quantityNeeded: number): Promise<any[]> {
+    try {
+      // Normaliser le nom du produit (insensible à la casse, sans pluriels)
+      const normalizedProductName = productName.toLowerCase().replace(/s$/, '');
+
+      // Rechercher les produits correspondants
+      const response = await axios.get(`${this.getUrl()}`, {
+        params: {
+          filterByFormula: `LOWER(SUBSTITUTE({name}, " ", "")) = "${normalizedProductName}"`,
+        },
+        headers: this.getHeaders(),
+      });
+
+      const products = response.data.records.map((record) => record.fields);
+
+      // Filtrer les produits avec un stock suffisant
+      return products.filter((product) => product.quantity >= quantityNeeded);
+    } catch (error) {
+      console.error('Erreur lors de la recherche des produits équivalents :', error.message);
+      throw error;//('Impossible de trouver des produits équivalents.');
     }
   }
   

@@ -38,4 +38,11 @@ export class CreateOrderDto {
   })
   @IsString()
   transaction_id: string;
+  
+  @ApiProperty({
+    example: 'recQW2EwO7NhBBUkX',
+    description: 'montant total payé par le client',
+  })
+  @IsNumber()
+  totalPaid: number;
 }

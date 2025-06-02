@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, Res} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, Res, Query} from '@nestjs/common';
 import { Response } from 'express'; // Importez également le type `Response` pour TypeScript
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './create-order.dto';

@@ -15,6 +15,12 @@ import { Buffer } from 'buffer';
 //import { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentTable, ContentImage, Table } from 'pdfmake/interfaces';
 
 dotenv.config();
+// Définir une interface pour représenter un produit
+interface Product {
+  id: string;
+  farmerId: string[];
+  quantity?: number; // Quantité optionnelle (peut être définie dans la commande)
+}
 
 interface UpdatedFields {
   status: string;
@@ -107,19 +113,6 @@ export class OrdersService {
     return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
   }
 
-  // Récupérer toutes les commandes
-  /*async findAll(page = 1, perPage = 10): Promise<any[]> {
-    const offset = (page - 1) * perPage;
-    const response = await axios.get(this.getUrl(), {
-      headers: this.getHeaders(),
-      params: {
-        pageSize: perPage,
-        offset: offset > 0 ? offset.toString() : undefined,
-      },
-    });
-    return response.data.records;
-  }*/
-
   async findAll(): Promise<any[]> {
   try {
     console.log('Récupération de tous les enregistrements...');
@@ -156,108 +149,44 @@ export class OrdersService {
     try {
       const response = await axios.get(`${this.getUrl()}/${id}`, 
       { headers: this.getHeaders() });
+      
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la récupération de la commande :', error.response?.data || error.message);
       throw error; //('Commande introuvable.');
     }
   }
+async getOrderById(orderId: string): Promise<any> {
+  const response = await axios.get(`${this.getUrl()}/${orderId}`, 
+  { headers: this.getHeaders() });
+  const order = response.data;
 
-/*async create(data: any): Promise<any> {
-  try {
-    // 1. Calcul du montant total avant taxe
-    let totalBeforeTax = 0;
-    for (const product of data.products) {
-      const productRecord = await this.productsService.findOne(product.id);
-      totalBeforeTax += productRecord.fields.price * product.quantity;
-    }
-
-    // 2. Application de la taxe de 18%
-    const taxAmount = totalBeforeTax * 0.18;
-    const totalWithTax = totalBeforeTax + taxAmount;
-
-    // 3. Récupération des comptes
-    const superAdmin = await this.usersService.getSuperAdmin();
-    if (!superAdmin?.fields.compteOwo) {
-      throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
-    }
-
-    // 4. Étape 2 - redirection vers la page de paiement
-    const paymentResponse = await axios.post(
-      'http://localhost:3000/transactions/valider-payment',
-      {
-        marchand_numero_compte: superAdmin.numero_compte,
-      }
-    );
-
-    if (!paymentResponse.data?.transaction_id) {
-      throw new Error('Réponse de paiement invalide - référence manquante');
-    }
-
-    // 5. Création de la commande après paiement validé
-    const formattedData = {
-      buyer: data.buyerId,
-      products: data.products.map(product => product.id),
-      totalBeforeTax: totalBeforeTax, // Nouveau champ
-      taxAmount: taxAmount, // Nouveau champ
-      totalPrice: totalWithTax,
-      Qty: data.products.map(product => product.quantity).join(' , '),
-      farmerPayments: '',
-      orderNumber: data.orderNumber || this.generateOrderNumber(),
-      paymentStatus: 'PAID',
-      paymentReference: paymentResponse.data.transaction_id,
-      paymentDetails: {
-        taxRate: '18%',
-        paymentMethod: 'OwoPay',
-        initResponse: paymentInitResponse.data,
-        paymentResponse: paymentResponse.data
-      }
-    };
-
-    // Calcul des paiements agriculteurs
-    const productIds = data.products.map(product => product.id);
-    const quantities = data.products.map(product => product.quantity);
-    const farmerPayments = await this.calculateFarmerPayments(productIds, quantities);
-    formattedData.farmerPayments = JSON.stringify(farmerPayments);
-
-    // Enregistrement dans Airtable
-    const response = await axios.post(
-      this.getUrl(),
-      { records: [{ fields: formattedData }] },
-      { headers: this.getHeaders() }
-    );
-
-    // Envoi de facture
-    const createdOrder = response.data.records[0];
-    if (createdOrder.fields.buyerEmail) {
-      await this.sendInvoiceByEmail(createdOrder.id, createdOrder.fields.buyerEmail);
-    }
-
-    return {
-      order: createdOrder,
-      payment: {
-        beforeTax: totalBeforeTax,
-        taxAmount: taxAmount,
-        totalPaid: totalWithTax,
-        transactionId: paymentValidationResponse.data.transaction_id,
-        timestamp: new Date().toISOString()
-      }
-    };
-
-  } catch (error) {
-    console.error('Erreur lors du processus de commande:', {
-      error: error.response?.data || error.message,
-      //stack: error.stack
-    });
-
-    throw new Error(`Échec de la commande: ${error.message}`);
+  if (!order) {
+    throw new Error('Commande non trouvée.');
   }
-}
 
-// Méthode helper pour générer un numéro de commande
-private generateOrderNumber(): string {
-  return `CMD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-}*/
+  // Extraire les champs nécessaires depuis "fields"
+  const fields = order.fields;
+
+  return {
+    id: order.id,
+    createdTime: order.createdTime,
+    status: fields.status,
+    totalPrice: fields.totalPrice,
+    products: fields.products || [], // Assurez-vous que "products" est un tableau
+    farmerProfile: fields.farmerProfile || [],
+    farmerLastName: fields.farmerLastName || [],
+    farmerFirstName: fields.farmerFirstName || [],
+    farmerId: fields.farmerId || [],
+    buyer: fields.buyer || [],
+    buyerAddress: fields.buyerAddress || [],
+    buyerPhone: fields.buyerPhone || [],
+    buyerLastName: fields.buyerLastName || [],
+    buyerFirstName: fields.buyerFirstName || [],
+    profileBuyer: fields.profileBuyer || [],
+    buyerId: fields.buyerId || [],
+  };
+}
 
       async create(data: any): Promise<any> {
         try {
@@ -272,6 +201,8 @@ private generateOrderNumber(): string {
             orderNumber: data.orderNumber,
             payStatus: data.payStatus,
             transaction_id: data.transaction_id,
+            totalPaid: data.totalPaid,
+
           };
      
           // Calculer le prix total
@@ -281,15 +212,16 @@ private generateOrderNumber(): string {
             totalPrice += productRecord.fields.price * product.quantity;
           }
 
-          // Application de la taxe de 18%
-          const taxAmount = totalPrice * 0.18;
-          const totalWithTax = totalPrice + taxAmount;
+      // Application de la taxe de 18%
+      const taxAmount = totalPrice * 0.18;
+      const totalWithTax = totalPrice + taxAmount;
 
-          // Récupération des comptes
-          /*const superAdmin = await this.usersService.getSuperAdmin();
-          if (!superAdmin?.fields.compteOwo) {
-            throw new Error('Aucun SUPERADMIN valide trouvé pour recevoir le paiement');
-          }*/
+      console.log('Le montant envoyé :', formattedData.totalPaid, 'Total calculé est :', totalWithTax)
+
+      if (totalWithTax !==formattedData.totalPaid) {
+        throw new Error('Le montant total n\'est pas correct.');
+      }
+
           formattedData.totalPrice = totalPrice;
 
           const productIds = data.products.map(product => product.id);

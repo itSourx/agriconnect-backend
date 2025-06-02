@@ -62,6 +62,9 @@ let ProductsService = ProductsService_1 = class ProductsService {
     }
     async findOne(id) {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
+        if (!response) {
+            throw new Error('Produit non trouvé.');
+        }
         return response.data;
     }
     async search(query) {
@@ -256,6 +259,23 @@ let ProductsService = ProductsService_1 = class ProductsService {
         }
         catch (error) {
             console.error('Erreur lors de la recherche des produits par agriculteur :', error.message);
+            throw error;
+        }
+    }
+    async findEquivalentProducts(productName, quantityNeeded) {
+        try {
+            const normalizedProductName = productName.toLowerCase().replace(/s$/, '');
+            const response = await axios_1.default.get(`${this.getUrl()}`, {
+                params: {
+                    filterByFormula: `LOWER(SUBSTITUTE({name}, " ", "")) = "${normalizedProductName}"`,
+                },
+                headers: this.getHeaders(),
+            });
+            const products = response.data.records.map((record) => record.fields);
+            return products.filter((product) => product.quantity >= quantityNeeded);
+        }
+        catch (error) {
+            console.error('Erreur lors de la recherche des produits équivalents :', error.message);
             throw error;
         }
     }

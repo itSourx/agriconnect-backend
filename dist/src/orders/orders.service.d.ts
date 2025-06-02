@@ -12,6 +12,7 @@ export declare class OrdersService {
     private getUrl;
     findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
+    getOrderById(orderId: string): Promise<any>;
     create(data: any): Promise<any>;
     update(id: string, data: any): Promise<any>;
     updateFarmerPayment(id: string, data: any): Promise<any>;

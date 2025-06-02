@@ -72,6 +72,32 @@ let OrdersService = class OrdersService {
             throw error;
         }
     }
+    async getOrderById(orderId) {
+        const response = await axios_1.default.get(`${this.getUrl()}/${orderId}`, { headers: this.getHeaders() });
+        const order = response.data;
+        if (!order) {
+            throw new Error('Commande non trouvée.');
+        }
+        const fields = order.fields;
+        return {
+            id: order.id,
+            createdTime: order.createdTime,
+            status: fields.status,
+            totalPrice: fields.totalPrice,
+            products: fields.products || [],
+            farmerProfile: fields.farmerProfile || [],
+            farmerLastName: fields.farmerLastName || [],
+            farmerFirstName: fields.farmerFirstName || [],
+            farmerId: fields.farmerId || [],
+            buyer: fields.buyer || [],
+            buyerAddress: fields.buyerAddress || [],
+            buyerPhone: fields.buyerPhone || [],
+            buyerLastName: fields.buyerLastName || [],
+            buyerFirstName: fields.buyerFirstName || [],
+            profileBuyer: fields.profileBuyer || [],
+            buyerId: fields.buyerId || [],
+        };
+    }
     async create(data) {
         try {
             const formattedData = {
@@ -83,6 +109,7 @@ let OrdersService = class OrdersService {
                 orderNumber: data.orderNumber,
                 payStatus: data.payStatus,
                 transaction_id: data.transaction_id,
+                totalPaid: data.totalPaid,
             };
             let totalPrice = 0;
             for (const product of data.products) {
@@ -91,6 +118,10 @@ let OrdersService = class OrdersService {
             }
             const taxAmount = totalPrice * 0.18;
             const totalWithTax = totalPrice + taxAmount;
+            console.log('Le montant envoyé :', formattedData.totalPaid, 'Total calculé est :', totalWithTax);
+            if (totalWithTax !== formattedData.totalPaid) {
+                throw new Error('Le montant total n\'est pas correct.');
+            }
             formattedData.totalPrice = totalPrice;
             const productIds = data.products.map(product => product.id);
             const quantities = data.products.map(product => product.quantity);

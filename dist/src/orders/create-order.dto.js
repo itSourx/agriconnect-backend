@@ -53,4 +53,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateOrderDto.prototype, "transaction_id", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        example: 'recQW2EwO7NhBBUkX',
+        description: 'montant total payé par le client',
+    }),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateOrderDto.prototype, "totalPaid", void 0);
 //# sourceMappingURL=create-order.dto.js.map

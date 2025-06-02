@@ -19,4 +19,5 @@ export declare class ProductsService {
     findAllByCategory(category: string): Promise<any[]>;
     updateStock(productId: string, quantity: number): Promise<any>;
     findByFarmer(farmerId: string): Promise<any[]>;
+    findEquivalentProducts(productName: string, quantityNeeded: number): Promise<any[]>;
 }
