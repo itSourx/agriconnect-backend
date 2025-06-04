@@ -38,9 +38,12 @@ let OrdersService = class OrdersService {
     getUrl() {
         return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
     }
+    async batchGetOrderPayments(orderIds) {
+        return Promise.all(orderIds.map(id => this.getOrderPayments(id).catch(e => null)));
+    }
     async findAll() {
         try {
-            console.log('Récupération de tous les enregistrements...');
+            console.log('Récupération de toutes les commandes...');
             let allRecords = [];
             let offset = undefined;
             do {
@@ -316,6 +319,7 @@ let OrdersService = class OrdersService {
             const lib = product.fields.Name;
             const mesure = product.fields.mesure;
             const category = product.fields.category;
+            const zone = product.fields.location;
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
@@ -341,6 +345,7 @@ let OrdersService = class OrdersService {
                 quantity,
                 price,
                 mesure,
+                zone,
                 total: totalAmount,
             });
         }
@@ -372,6 +377,7 @@ let OrdersService = class OrdersService {
                     const formattedStatusDate = rawStatusDate ? (0, date_fns_1.format)(new Date(rawStatusDate), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
                     farmerOrders.push({
                         orderId,
+                        orderNumber: fields.orderNumber,
                         buyerName: fields.buyerName,
                         buyerEmail: fields.buyerEmail,
                         totalAmount: farmerPayment.totalAmount,
@@ -871,6 +877,185 @@ let OrdersService = class OrdersService {
             console.error('Erreur lors de la récupération des clients de l\'agriculteur :', error.message);
             throw error;
         }
+    }
+    async calculateOrderStats(orders) {
+        const productStats = {};
+        let globalTotal = 0;
+        await Promise.all(orders.map(async (order) => {
+            const payments = await this.getOrderPayments(order.id);
+            const productsInOrder = new Set();
+            payments.forEach(payment => {
+                payment.products.forEach(product => {
+                    if (!product.productId)
+                        return;
+                    if (!productStats[product.productId]) {
+                        productStats[product.productId] = {
+                            orderCount: 0,
+                            productName: product.lib || 'Inconnu',
+                            category: product.category || 'Non catégorisé',
+                            mesure: product.mesure || 'Non défini',
+                            totalQuantity: 0,
+                            totalRevenue: 0
+                        };
+                    }
+                    if (!productsInOrder.has(product.productId)) {
+                        productStats[product.productId].orderCount++;
+                        productsInOrder.add(product.productId);
+                    }
+                    productStats[product.productId].totalQuantity += product.quantity || 0;
+                    productStats[product.productId].totalRevenue += product.total || 0;
+                    globalTotal += product.total || 0;
+                });
+            });
+        }));
+        const statsArray = Object.entries(productStats).map(([productId, stats]) => ({
+            productId,
+            ...stats,
+            percentageOfTotal: globalTotal > 0 ? (stats.totalRevenue / globalTotal) * 100 : 0,
+            percentageOfOrders: orders.length > 0 ? (stats.orderCount / orders.length) * 100 : 0
+        }));
+        const sortedStats = statsArray.sort((a, b) => b.totalQuantity - a.totalQuantity);
+        const sortedStatsRevenue = statsArray.sort((a, b) => b.totalRevenue - a.totalRevenue);
+        return {
+            totalOrders: orders.length,
+            totalProducts: Object.keys(productStats).length,
+            globalTotalRevenue: globalTotal,
+            products: sortedStatsRevenue
+        };
+    }
+    async calculateFarmerStats(orders) {
+        const farmerStats = {};
+        let globalTotalRevenue = 0;
+        await Promise.all(orders.map(async (order) => {
+            try {
+                const payments = await this.getOrderPayments(order.id);
+                const farmerId = order.farmerId || payments[0]?.farmerId;
+                if (!farmerId)
+                    return;
+                if (!farmerStats[farmerId]) {
+                    farmerStats[farmerId] = {
+                        farmerName: payments[0]?.name || 'Inconnu',
+                        farmerEmail: payments[0]?.email || '',
+                        totalOrders: 0,
+                        totalProducts: 0,
+                        totalRevenue: 0,
+                        products: {}
+                    };
+                }
+                farmerStats[farmerId].totalOrders++;
+                payments.forEach(payment => {
+                    payment.products.forEach(product => {
+                        if (!product.productId)
+                            return;
+                        if (!farmerStats[farmerId].products[product.productId]) {
+                            farmerStats[farmerId].products[product.productId] = {
+                                name: product.lib || 'Inconnu',
+                                category: product.category || 'Inconnue',
+                                price: product.price || 'Inconnue',
+                                quantity: 0,
+                                revenue: 0
+                            };
+                            farmerStats[farmerId].totalProducts++;
+                        }
+                        farmerStats[farmerId].products[product.productId].quantity += product.quantity || 0;
+                        farmerStats[farmerId].products[product.productId].revenue += product.total || 0;
+                        farmerStats[farmerId].totalRevenue += product.total || 0;
+                        globalTotalRevenue += product.total || 0;
+                    });
+                });
+            }
+            catch (error) {
+                console.error(`Erreur commande ${order.id}:`, error.message);
+            }
+        }));
+        const farmersArray = Object.entries(farmerStats).map(([farmerId, stats]) => ({
+            farmerId,
+            ...stats,
+            percentageOfTotalRevenue: globalTotalRevenue > 0 ?
+                (stats.totalRevenue / globalTotalRevenue) * 100 : 0
+        }));
+        return {
+            totalFarmers: Object.keys(farmerStats).length,
+            globalTotalRevenue,
+            farmers: farmersArray.sort((a, b) => b.totalRevenue - a.totalRevenue)
+        };
+    }
+    async calculateBuyerStats(orders) {
+        const buyerStats = {};
+        let globalTotalRevenue = 0;
+        await Promise.all(orders.map(async (order) => {
+            try {
+                const buyerId = order.fields.buyerId[0];
+                if (!buyerId)
+                    return;
+                if (!buyerStats[buyerId]) {
+                    buyerStats[buyerId] = {
+                        buyerName: order.fields.buyerName[0] || 'Acheteur inconnu',
+                        buyerEmail: order.fields.buyerEmail[0] || '',
+                        totalOrders: 0,
+                        totalProducts: 0,
+                        totalSpent: 0,
+                        favoriteCategory: '',
+                        products: {},
+                        categories: {}
+                    };
+                }
+                buyerStats[buyerId].totalOrders++;
+                const payments = await this.getOrderPayments(order.id);
+                payments.forEach(payment => {
+                    payment.products.forEach(product => {
+                        if (!product.productId)
+                            return;
+                        if (!buyerStats[buyerId].products[product.productId]) {
+                            buyerStats[buyerId].products[product.productId] = {
+                                name: product.lib || 'Inconnu',
+                                category: product.category || 'Inconnue',
+                                price: product.price || 'Inconnue',
+                                quantity: 0,
+                                amount: 0
+                            };
+                            buyerStats[buyerId].totalProducts++;
+                        }
+                        buyerStats[buyerId].products[product.productId].quantity += product.quantity || 0;
+                        buyerStats[buyerId].products[product.productId].amount += product.total || 0;
+                        const category = product.category || 'Non catégorisé';
+                        if (!buyerStats[buyerId].categories[category]) {
+                            buyerStats[buyerId].categories[category] = {
+                                quantity: 0,
+                                amount: 0
+                            };
+                        }
+                        buyerStats[buyerId].categories[category].quantity += product.quantity || 0;
+                        buyerStats[buyerId].categories[category].amount += product.total || 0;
+                        buyerStats[buyerId].totalSpent += product.total || 0;
+                        globalTotalRevenue += product.total || 0;
+                    });
+                });
+                if (Object.keys(buyerStats[buyerId].categories).length > 0) {
+                    buyerStats[buyerId].favoriteCategory = Object.entries(buyerStats[buyerId].categories)
+                        .sort((a, b) => b[1].amount - a[1].amount)[0][0];
+                }
+            }
+            catch (error) {
+                console.error(`Erreur commande ${order.id}:`, error.message);
+            }
+        }));
+        const buyersArray = Object.entries(buyerStats).map(([buyerId, stats]) => ({
+            buyerId,
+            ...stats,
+            percentageOfTotalSpent: globalTotalRevenue > 0 ?
+                (stats.totalSpent / globalTotalRevenue) * 100 : 0,
+            categoryStats: Object.entries(stats.categories).map(([category, data]) => ({
+                category,
+                ...data,
+                percentage: (data.amount / stats.totalSpent) * 100
+            }))
+        }));
+        return {
+            totalBuyers: Object.keys(buyerStats).length,
+            globalTotalRevenue,
+            buyers: buyersArray.sort((a, b) => b.totalSpent - a.totalSpent)
+        };
     }
 };
 exports.OrdersService = OrdersService;

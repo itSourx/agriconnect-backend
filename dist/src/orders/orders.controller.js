@@ -15,12 +15,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrdersController = void 0;
 const common_1 = require("@nestjs/common");
 const orders_service_1 = require("./orders.service");
+const products_service_1 = require("../products/products.service");
 const create_order_dto_1 = require("./create-order.dto");
 const auth_guard_1 = require("../auth/auth.guard");
 const axios_1 = require("axios");
+class DateRangeDto {
+}
+class ProductStatDto {
+}
+class OrderStatsResponse {
+}
 let OrdersController = class OrdersController {
-    constructor(ordersService) {
+    constructor(ordersService, productsService) {
         this.ordersService = ordersService;
+        this.productsService = productsService;
     }
     getUrl() {
         return `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Orders`;
@@ -33,6 +41,112 @@ let OrdersController = class OrdersController {
     }
     async findAll() {
         return this.ordersService.findAll();
+    }
+    async getGlobalStatistics(dateRange) {
+        try {
+            const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+            const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            if (startDate && isNaN(startDate.getTime())) {
+                throw new common_1.HttpException('Format de date de début invalide (utilisez YYYY-MM-DD)', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (endDate && isNaN(endDate.getTime())) {
+                throw new common_1.HttpException('Format de date de fin invalide (utilisez YYYY-MM-DD)', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (startDate && endDate && startDate > endDate) {
+                throw new common_1.HttpException('La date de début ne peut pas être postérieure à la date de fin', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (startDate && startDate > today) {
+                throw new common_1.HttpException('La date de début ne peut pas être dans le futur', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const allOrders = await this.ordersService.findAll();
+            if (!allOrders.length) {
+                return {
+                    message: 'Aucune commande trouvée',
+                    products: []
+                };
+            }
+            const filteredOrders = allOrders.filter(order => {
+                const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+                return ((!startDate || orderDate >= startDate) &&
+                    (!endDate || orderDate <= endDate));
+            });
+            const stats = await this.ordersService.calculateOrderStats(filteredOrders);
+            return {
+                period: {
+                    start: startDate?.toISOString().split('T')[0] || 'Tous',
+                    end: endDate?.toISOString().split('T')[0] || 'Tous'
+                },
+                ...stats
+            };
+        }
+        catch (error) {
+            console.error('Erreur détaillée:', error);
+            throw error;
+        }
+    }
+    async getFarmerStatistics(dateRange) {
+        try {
+            const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+            const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            if (startDate && isNaN(startDate.getTime())) {
+                throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (endDate && isNaN(endDate.getTime())) {
+                throw new common_1.HttpException('Format de date de fin invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (startDate && endDate && startDate > endDate) {
+                throw new common_1.HttpException('La date de début doit être ultérieure à la date de fin', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const allOrders = await this.ordersService.findAll();
+            const filteredOrders = allOrders.filter(order => {
+                const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+                return ((!startDate || orderDate >= startDate) &&
+                    (!endDate || orderDate <= endDate));
+            });
+            const stats = await this.ordersService.calculateFarmerStats(filteredOrders);
+            return {
+                period: {
+                    start: startDate?.toISOString().split('T')[0] || 'Tous',
+                    end: endDate?.toISOString().split('T')[0] || 'Tous'
+                },
+                ...stats
+            };
+        }
+        catch (error) {
+            throw error;
+        }
+    }
+    async getBuyerStatistics(dateRange) {
+        try {
+            const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+            const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            if (startDate && isNaN(startDate.getTime())) {
+                throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (endDate && isNaN(endDate.getTime())) {
+                throw new common_1.HttpException('Format de date de fin invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const allOrders = await this.ordersService.findAll();
+            const filteredOrders = allOrders.filter(order => {
+                const orderDate = new Date(order.createdAt || order.fields?.date);
+                return ((!startDate || orderDate >= startDate) &&
+                    (!endDate || orderDate <= endDate));
+            });
+            const stats = await this.ordersService.calculateBuyerStats(filteredOrders);
+            return {
+                success: true,
+                period: {
+                    start: startDate?.toISOString().split('T')[0] || 'Tous',
+                    end: endDate?.toISOString().split('T')[0] || 'Tous'
+                },
+                ...stats
+            };
+        }
+        catch (error) {
+            throw new common_1.HttpException(error.response?.message || 'Erreur de calcul des statistiques acheteurs', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     async findOne(id) {
         return this.ordersService.findOne(id);
@@ -179,6 +293,119 @@ let OrdersController = class OrdersController {
             throw error;
         }
     }
+    async getDashboardStats() {
+        try {
+            const [products, orders] = await Promise.all([
+                this.productsService.findAll(),
+                this.ordersService.findAll(),
+            ]);
+            if (!products.length) {
+                return { message: 'No products available' };
+            }
+            const productStats = {};
+            let globalTotalAmount = 0;
+            await Promise.all(orders.map(async (order) => {
+                try {
+                    const payments = await this.ordersService.getOrderPayments(order.id);
+                    payments.forEach(payment => {
+                        payment.products.forEach(product => {
+                            if (!product.productId)
+                                return;
+                            if (!productStats[product.productId]) {
+                                productStats[product.productId] = {
+                                    totalQuantity: 0,
+                                    totalRevenue: 0,
+                                    productName: product.lib || 'Nom inconnu',
+                                    category: product.category || 'Non catégorisé'
+                                };
+                            }
+                            productStats[product.productId].totalQuantity += product.quantity || 0;
+                            productStats[product.productId].totalRevenue += product.total || 0;
+                            globalTotalAmount += product.total || 0;
+                        });
+                    });
+                }
+                catch (error) {
+                    console.error(`Erreur commande ${order.id}:`, error.message);
+                }
+            }));
+            const productsArray = Object.keys(productStats).map(productId => ({
+                productId,
+                totalQuantity: productStats[productId].totalQuantity,
+                totalRevenue: productStats[productId].totalRevenue,
+                productName: productStats[productId].productName,
+                category: productStats[productId].category
+            }));
+            const topByQuantity = [...productsArray]
+                .sort((a, b) => b.totalQuantity - a.totalQuantity)
+                .slice(0, 5);
+            const topByRevenue = [...productsArray]
+                .sort((a, b) => b.totalRevenue - a.totalRevenue)
+                .slice(0, 5);
+            const totalProductsSold = productsArray.reduce((sum, p) => sum + p.totalQuantity, 0);
+            const avgProductValue = globalTotalAmount / (totalProductsSold || 1);
+            const categoryStats = products.reduce((acc, product) => {
+                const category = product.fields?.category || 'Non catégorisé';
+                const price = product.fields?.price || 0;
+                if (!acc[category]) {
+                    acc[category] = { total: 0, count: 0 };
+                }
+                acc[category].total += price;
+                acc[category].count += 1;
+                return acc;
+            }, {});
+            const avgPriceByCategory = Object.entries(categoryStats).map(([category, stats]) => ({
+                category,
+                averagePrice: stats.total / stats.count,
+                productCount: stats.count,
+            }));
+            const totalOrders = orders.length;
+            const totalRevenue = orders.reduce((sum, order) => sum + (order.fields.totalPrice || 0), 0);
+            return {
+                summary: {
+                    totalProductsSold,
+                    globalTotalAmount,
+                    avgProductValue
+                },
+                topByQuantity,
+                topByRevenue,
+                avgPriceByCategory,
+                orderStats: {
+                    totalOrders,
+                    totalRevenue,
+                    avgOrderValue: totalOrders ? totalRevenue / totalOrders : 0,
+                },
+            };
+        }
+        catch (error) {
+            throw new common_1.HttpException('Failed to load dashboard stats', common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getProductsStats() {
+        const orders = await this.ordersService.findAll();
+        const products = await this.productsService.findAll();
+        const productMap = new Map(products.map(p => [p.id, p]));
+        const stats = {};
+        for (const order of orders) {
+            for (const item of order.products) {
+                const product = productMap.get(item.productId);
+                if (!product)
+                    continue;
+                const productId = product.id;
+                if (!stats[productId]) {
+                    stats[productId] = {
+                        name: product.name,
+                        quantity: 0,
+                        total: 0,
+                        category: product.category,
+                    };
+                }
+                stats[productId].quantity += item.quantity;
+                stats[productId].total += item.quantity * product.price;
+            }
+        }
+        return Object.values(stats);
+    }
 };
 exports.OrdersController = OrdersController;
 __decorate([
@@ -187,6 +414,27 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('stats'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getGlobalStatistics", null);
+__decorate([
+    (0, common_1.Get)('stats/farmers'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getFarmerStatistics", null);
+__decorate([
+    (0, common_1.Get)('stats/buyers'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getBuyerStatistics", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
@@ -287,8 +535,21 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getFarmerClients", null);
+__decorate([
+    (0, common_1.Post)('dashboard'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getDashboardStats", null);
+__decorate([
+    (0, common_1.Get)('products-stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getProductsStats", null);
 exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
-    __metadata("design:paramtypes", [orders_service_1.OrdersService])
+    __metadata("design:paramtypes", [orders_service_1.OrdersService,
+        products_service_1.ProductsService])
 ], OrdersController);
 //# sourceMappingURL=orders.controller.js.map

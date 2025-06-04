@@ -38,7 +38,7 @@ let ProductsService = ProductsService_1 = class ProductsService {
     }
     async findAll() {
         try {
-            console.log('Récupération de tous les enregistrements...');
+            console.log('Récupération de tous les produits...');
             let allRecords = [];
             let offset = undefined;
             do {

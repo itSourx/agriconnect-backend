@@ -1,13 +1,44 @@
-import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, Res, Query} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, Res, Query,  HttpException, HttpStatus} from '@nestjs/common';
 import { Response } from 'express'; // Importez également le type `Response` pour TypeScript
 import { OrdersService } from './orders.service';
+import { ProductsService } from '../products/products.service'; // Importez ProductsService
 import { CreateOrderDto } from './create-order.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import axios from 'axios';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+//import { DateRangeDto, StatsResponse, FarmerStatsResponse } from './dto/stats.dto';
+
+// Définissez les DTO avant le contrôleur
+class DateRangeDto {
+  startDate?: string;
+  endDate?: string;
+}
+
+class ProductStatDto {
+  productId: string;
+  productName: string;
+  category: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  percentageOfTotal: number;
+}
+
+class OrderStatsResponse {
+  success: boolean;
+  period: {
+    start: string;
+    end: string;
+  };
+  totalOrders: number;
+  globalTotalRevenue: number;
+  products: ProductStatDto[];
+}
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor
+  (private readonly ordersService: OrdersService,
+   private readonly productsService: ProductsService) {}
 
   // Méthode utilitaire pour obtenir l'URL de base d'Airtable
   private getUrl(): string {
@@ -21,11 +52,178 @@ export class OrdersController {
       'Content-Type': 'application/json',
     };
   }
-
+  
   @Get()
   async findAll() {
     return this.ordersService.findAll();
   }
+
+  @Get('stats')
+  async getGlobalStatistics(
+  @Query() dateRange?: { startDate?: string; endDate?: string }) {
+    
+    try {
+    // 1. Gestion des dates optionnelles
+    const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+
+    // 2. Validation des dates si fournies
+    if (startDate && isNaN(startDate.getTime())) {
+      throw new HttpException('Format de date de début invalide (utilisez YYYY-MM-DD)', HttpStatus.BAD_REQUEST);
+    }
+
+    if (endDate && isNaN(endDate.getTime())) {
+      throw new HttpException('Format de date de fin invalide (utilisez YYYY-MM-DD)', HttpStatus.BAD_REQUEST);
+    }
+
+    // 3. Contrôle de cohérence des dates
+    if (startDate && endDate && startDate > endDate) {
+      throw new HttpException(
+        'La date de début ne peut pas être postérieure à la date de fin', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // 4. Contrôle des dates futures
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalisation
+
+    if (startDate && startDate > today) {
+      throw new HttpException(
+        'La date de début ne peut pas être dans le futur',
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    /*if (endDate && endDate > today) {
+      throw new HttpException(
+        'La date de fin ne peut pas être dans le futur', 
+        HttpStatus.BAD_REQUEST
+      );
+    }*/
+      // 5. Récupération des commandes filtrées
+      const allOrders = await this.ordersService.findAll();
+      if (!allOrders.length) {
+        return {
+          message: 'Aucune commande trouvée',
+          products: []
+        };
+      }     
+      const filteredOrders = allOrders.filter(order => {
+        const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+        return (
+          (!startDate || orderDate >= startDate) &&
+          (!endDate || orderDate <= endDate)
+        );
+      });
+
+      // 6. Calcul des statistiques
+      const stats = await this.ordersService.calculateOrderStats(filteredOrders);
+      
+      return {
+        period: {
+          start: startDate?.toISOString().split('T')[0] || 'Tous',
+          end: endDate?.toISOString().split('T')[0] || 'Tous'
+        },
+        ...stats
+      };
+
+    } catch (error) {
+      console.error('Erreur détaillée:', error);
+      throw error; 
+      //throw new HttpException(error.response?.message || 'Erreur de calcul des statistiques', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+ @Get('stats/farmers')
+async getFarmerStatistics(
+  @Query() dateRange: { startDate?: string; endDate?: string }
+) {
+  try {
+    // Validation des dates (identique à la version globale)
+    const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+
+    if (startDate && isNaN(startDate.getTime())) {
+      throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
+    }
+    if (endDate && isNaN(endDate.getTime())) {
+      throw new HttpException('Format de date de fin invalide', HttpStatus.BAD_REQUEST);
+    }
+    if (startDate && endDate && startDate > endDate) {
+      throw new HttpException('La date de début doit être ultérieure à la date de fin', HttpStatus.BAD_REQUEST);
+    }
+
+    // Récupération des commandes filtrées
+    const allOrders = await this.ordersService.findAll();
+    const filteredOrders = allOrders.filter(order => {
+      const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+      return (
+        (!startDate || orderDate >= startDate) &&
+        (!endDate || orderDate <= endDate)
+      );
+    });
+
+    // Calcul des stats par agriculteur
+    const stats = await this.ordersService.calculateFarmerStats(filteredOrders);
+    
+    return {
+      period: {
+        start: startDate?.toISOString().split('T')[0] || 'Tous',
+        end: endDate?.toISOString().split('T')[0] || 'Tous'
+      },
+      ...stats
+    };
+
+  } catch (error) {
+    throw error;
+  }
+}
+
+@Get('stats/buyers')
+async getBuyerStatistics(
+  @Query() dateRange: { startDate?: string; endDate?: string }
+) {
+  try {
+    // Validation des dates (identique aux autres endpoints)
+    const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+
+    if (startDate && isNaN(startDate.getTime())) {
+      throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
+    }
+    if (endDate && isNaN(endDate.getTime())) {
+      throw new HttpException('Format de date de fin invalide', HttpStatus.BAD_REQUEST);
+    }
+
+    // Récupération des commandes filtrées
+    const allOrders = await this.ordersService.findAll();
+    const filteredOrders = allOrders.filter(order => {
+      const orderDate = new Date(order.createdAt || order.fields?.date);
+      return (
+        (!startDate || orderDate >= startDate) &&
+        (!endDate || orderDate <= endDate)
+      );
+    });
+
+    // Calcul des stats par acheteur
+    const stats = await this.ordersService.calculateBuyerStats(filteredOrders);
+    
+    return {
+      success: true,
+      period: {
+        start: startDate?.toISOString().split('T')[0] || 'Tous',
+        end: endDate?.toISOString().split('T')[0] || 'Tous'
+      },
+      ...stats
+    };
+
+  } catch (error) {
+    throw new HttpException(
+      error.response?.message || 'Erreur de calcul des statistiques acheteurs',
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
@@ -246,4 +444,169 @@ async sendInvoice(@Param('id') orderId: string) {
       throw error; // Propager l'erreur telle quelle
     }
   }
+
+  @Post('dashboard')
+  async getDashboardStats() {
+    try {
+      const [products, orders] = await Promise.all([
+        this.productsService.findAll(),
+        this.ordersService.findAll(),
+      ]);
+
+      if (!products.length) {
+        return { message: 'No products available' };
+      }
+
+      // Définir le type pour les statistiques de catégorie
+      interface CategoryStats {
+        total: number;
+        count: number;
+      }
+    // 1. Agrégation des données de vente
+    interface ProductStats {
+      totalQuantity: number;
+      totalRevenue: number;
+      productName: string;
+      category: string;
+    }
+
+    const productStats: Record<string, ProductStats> = {};
+    let globalTotalAmount = 0;
+
+    await Promise.all(
+      orders.map(async (order) => {
+        try {
+          const payments = await this.ordersService.getOrderPayments(order.id);
+          
+          payments.forEach(payment => {
+            payment.products.forEach(product => {
+              if (!product.productId) return;
+              
+              if (!productStats[product.productId]) {
+                productStats[product.productId] = {
+                  totalQuantity: 0,
+                  totalRevenue: 0,
+                  productName: product.lib || 'Nom inconnu',
+                  category: product.category || 'Non catégorisé'
+                };
+              }
+              
+              productStats[product.productId].totalQuantity += product.quantity || 0;
+              productStats[product.productId].totalRevenue += product.total || 0;
+              globalTotalAmount += product.total || 0;
+            });
+          });
+          
+        } catch (error) {
+          console.error(`Erreur commande ${order.id}:`, error.message);
+        }
+      })
+    );
+
+    // 2. Conversion en tableau et tri
+    const productsArray = Object.keys(productStats).map(productId => ({
+      productId,
+      totalQuantity: productStats[productId].totalQuantity,
+      totalRevenue: productStats[productId].totalRevenue,
+      productName: productStats[productId].productName,
+      category: productStats[productId].category
+    }));
+
+    // Top 5 par quantité
+    const topByQuantity = [...productsArray]
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 5);
+
+    // Top 5 par chiffre d'affaires
+    const topByRevenue = [...productsArray]
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 5);
+
+    // 3. Statistiques globales
+    const totalProductsSold = productsArray.reduce((sum, p) => sum + p.totalQuantity, 0);
+    //const avgProductValue = globalTotalAmount / totalProductsSold;
+    const avgProductValue = globalTotalAmount / (totalProductsSold || 1); // Évite division par 0
+
+
+      // Average price by category
+      const categoryStats = products.reduce<Record<string, CategoryStats>>((acc, product) => {
+        const category = product.fields?.category || 'Non catégorisé';
+        const price = product.fields?.price || 0;
+        
+        if (!acc[category]) {
+          acc[category] = { total: 0, count: 0 };
+        }
+        
+        acc[category].total += price;
+        acc[category].count += 1;
+        return acc;
+      }, {});
+
+      const avgPriceByCategory = Object.entries(categoryStats).map(([category, stats]) => ({
+        category,
+        averagePrice: stats.total / stats.count,
+        productCount: stats.count,
+      }));
+
+      // Additional stats from orders
+      const totalOrders = orders.length;    
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.fields.totalPrice || 0), 0); // Correction ici
+
+
+      return {
+        summary: {
+          totalProductsSold,
+          globalTotalAmount,
+          avgProductValue
+        },
+        topByQuantity,
+        topByRevenue,
+        // ... autres métriques si besoin
+
+        //topProducts,
+        avgPriceByCategory,
+        orderStats: {
+          totalOrders,
+          totalRevenue,
+          avgOrderValue: totalOrders ? totalRevenue / totalOrders : 0,
+        },
+      };
+    } catch (error) {
+      throw new HttpException('Failed to load dashboard stats', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  
+  @Get('products-stats')
+    async getProductsStats() {
+      // Étape 1 : Récupérer toutes les commandes
+      const orders = await this.ordersService.findAll();
+
+      // Étape 2 : Récupérer tous les produits
+      const products = await this.productsService.findAll();
+      const productMap = new Map(products.map(p => [p.id, p]));
+
+      // Étape 3 : Agréger les données
+      const stats = {};
+      for (const order of orders) {
+        for (const item of order.products) {
+          const product = productMap.get(item.productId);
+          if (!product) continue;
+
+          const productId = product.id;
+          if (!stats[productId]) {
+            stats[productId] = {
+              name: product.name,
+              quantity: 0,
+              total: 0,
+              category: product.category,
+            };
+          }
+          stats[productId].quantity += item.quantity;
+          stats[productId].total += item.quantity * product.price;
+        }
+      }
+
+      // Étape 4 : Convertir en tableau
+      return Object.values(stats);
+    }
 }

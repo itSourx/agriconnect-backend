@@ -11,8 +11,7 @@ import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 //import { customFonts } from './custom-fonts'; // Importer les polices personnalisées
 import * as nodemailer from 'nodemailer';
 import { Buffer } from 'buffer';
-//import { TDocumentDefinitions } from 'pdfmake/interfaces';
-//import { TDocumentDefinitions, Content, ContentColumns, ContentStack, ContentTable, ContentImage, Table } from 'pdfmake/interfaces';
+//import { ProductStatDto, FarmerStatDto } from './dto/stats.dto';
 
 dotenv.config();
 // Définir une interface pour représenter un produit
@@ -88,6 +87,17 @@ interface OrderData {
   paymentReason?: string; // Optionnel
   //buyerEmail?: string; // Optionnel
 }
+interface FarmerStat {
+  farmerName: string;
+  totalOrders: number;
+  totalProducts: number;
+  totalRevenue: number;
+  products: Record<string, {
+    productName: string;
+    totalQuantity: number;
+    totalRevenue: number;
+  }>;
+}
 
 @Injectable()
 export class OrdersService {
@@ -112,10 +122,14 @@ export class OrdersService {
   private getUrl() {
     return `https://api.airtable.com/v0/${this.baseId}/${this.tableName}`;
   }
-
+async batchGetOrderPayments(orderIds: string[]) {
+  return Promise.all(
+    orderIds.map(id => this.getOrderPayments(id).catch(e => null))
+  );
+}
   async findAll(): Promise<any[]> {
   try {
-    console.log('Récupération de tous les enregistrements...');
+    console.log('Récupération de toutes les commandes...');
 
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;
@@ -296,7 +310,7 @@ async getOrderById(orderId: string): Promise<any> {
       Qty: data.products.map(product => product.quantity).join(' , '), // Convertir le tableau en chaîne
       status: data.status || 'pending', // Conserver le statut actuel ou mettre à jour
       totalPrice: 0, // Initialiser à 0, puis calculer le prix total
-
+      //farmerPayments: '', // Ajouter explicitement la propriété farmerPayments
     };
 
     // Calculer le prix total
@@ -306,6 +320,12 @@ async getOrderById(orderId: string): Promise<any> {
       totalPrice += productRecord.fields.price * product.quantity;
     }
     formattedData.totalPrice = totalPrice;
+
+    // Calculer les paiements par agriculteur
+    //const farmerPayments = await this.calculateFarmerPayments(formattedData.products, formattedData.Qty);
+
+    // Ajouter les paiements par agriculteur aux données
+    //formattedData.farmerPayments = JSON.stringify(farmerPayments);
 
     console.log('Données formatées pour la mise à jour :', formattedData);
 
@@ -504,7 +524,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const lib = product.fields.Name; // Libellé du produit
     const mesure = product.fields.mesure; // mesure du produit
     const category = product.fields.category; // categorie du produit
-    //const img = product.fields.Photo; // Image du produit
+    const zone = product.fields.location; // Image du produit
 
 
     
@@ -541,6 +561,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       quantity,
       price,
       mesure,
+      zone,
       total: totalAmount,
     });
   }
@@ -559,14 +580,15 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
     // Déclarer explicitement le type du tableau farmerOrders
     type FarmerOrder = {
       orderId: string;
-      status: string;
-      totalAmount: number;
-      totalProducts: number;
-      createdDate: string;
-      statusDate: string;
+      orderNumber: string;
       buyerName: string;
       buyerEmail: string;
+      totalAmount: number;
+      totalProducts: number;
       products: any[];
+      status: string;
+      statusDate: string;
+      createdDate: string;
     };
 
     const farmerOrders: FarmerOrder[] = [];
@@ -600,6 +622,7 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         // Ajouter les détails de la commande pour cet agriculteur
         farmerOrders.push({
           orderId,
+          orderNumber: fields.orderNumber,
           buyerName: fields.buyerName,
           buyerEmail: fields.buyerEmail,
           totalAmount: farmerPayment.totalAmount,
@@ -1541,4 +1564,272 @@ async getOrderPayments(orderId: string): Promise<any> {
       }
     }
 
-  }
+  async calculateOrderStats(orders: any[]) {
+  const productStats: Record<string, {
+    orderCount: number;
+    productName: string;
+    category: string;
+    mesure: string;
+    totalQuantity: number;
+    totalRevenue: number;
+  }> = {};
+
+  let globalTotal = 0;
+
+  await Promise.all(
+    orders.map(async (order) => {
+      const payments = await this.getOrderPayments(order.id);
+
+      // Garder une trace des produits déjà comptés dans cette commande
+      const productsInOrder = new Set();
+
+      payments.forEach(payment => {
+        payment.products.forEach(product => {
+          if (!product.productId) return;
+          
+          if (!productStats[product.productId]) {
+            productStats[product.productId] = {
+              orderCount: 0,
+              productName: product.lib || 'Inconnu',
+              category: product.category || 'Non catégorisé',
+              mesure: product.mesure || 'Non défini',
+              totalQuantity: 0,
+              totalRevenue: 0
+            };
+          }
+           // Incrémenter le compteur de commandes (une fois par commande)
+          if (!productsInOrder.has(product.productId)) {
+            productStats[product.productId].orderCount++;
+            productsInOrder.add(product.productId);
+          }
+
+          productStats[product.productId].totalQuantity += product.quantity || 0;
+          productStats[product.productId].totalRevenue += product.total || 0;
+          globalTotal += product.total || 0;
+        });
+      });
+    })
+  );
+
+  // Conversion en tableau et calcul des pourcentages
+  const statsArray = Object.entries(productStats).map(([productId, stats]) => ({
+    productId,
+    ...stats,
+    percentageOfTotal: globalTotal > 0 ? (stats.totalRevenue / globalTotal) * 100 : 0,
+    percentageOfOrders: orders.length > 0 ? (stats.orderCount / orders.length) * 100 : 0
+  }));
+
+  // Tri par quantité descendante
+  const sortedStats = statsArray.sort((a, b) => b.totalQuantity - a.totalQuantity);
+  const sortedStatsRevenue = statsArray.sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+
+  return {
+    totalOrders: orders.length,
+    totalProducts: Object.keys(productStats).length, // Nombre de produits distincts
+    globalTotalRevenue: globalTotal,
+    products: sortedStatsRevenue
+  };
+}
+
+async calculateFarmerStats(orders: any[]) {
+  const farmerStats: Record<string, {
+    farmerName: string;
+    farmerEmail: string;
+    totalOrders: number;
+    totalProducts: number;
+    totalRevenue: number;
+    products: Record<string, {
+      name: string,
+      category: string,
+      price: number;
+      quantity: number;
+      revenue: number;
+    }>;
+  }> = {};
+
+  let globalTotalRevenue = 0;
+
+  await Promise.all(
+    orders.map(async (order) => {
+      try {
+        const payments = await this.getOrderPayments(order.id);
+        const farmerId = order.farmerId || payments[0]?.farmerId;
+
+        if (!farmerId) return;
+
+        // Initialisation agriculteur
+        if (!farmerStats[farmerId]) {
+          farmerStats[farmerId] = {
+            farmerName: payments[0]?.name || 'Inconnu',
+            farmerEmail: payments[0]?.email || '',
+            totalOrders: 0,
+            totalProducts: 0,
+            totalRevenue: 0,
+            products: {}
+          };
+        }
+
+        farmerStats[farmerId].totalOrders++;
+
+        // Parcours des produits
+        payments.forEach(payment => {
+          payment.products.forEach(product => {
+            if (!product.productId) return;
+
+            // Initialisation produit
+            if (!farmerStats[farmerId].products[product.productId]) {
+              farmerStats[farmerId].products[product.productId] = {
+                name: product.lib || 'Inconnu',
+                category: product.category || 'Inconnue',
+                price: product.price || 'Inconnue',
+                quantity: 0,
+                revenue: 0
+              };
+              farmerStats[farmerId].totalProducts++;
+            }
+
+            // Cumul des valeurs
+            farmerStats[farmerId].products[product.productId].quantity += product.quantity || 0;
+            farmerStats[farmerId].products[product.productId].revenue += product.total || 0;
+            farmerStats[farmerId].totalRevenue += product.total || 0;
+            globalTotalRevenue += product.total || 0;
+          });
+        });
+
+      } catch (error) {
+        console.error(`Erreur commande ${order.id}:`, error.message);
+      }
+    })
+  );
+
+  // Formatage de la réponse
+  const farmersArray = Object.entries(farmerStats).map(([farmerId, stats]) => ({
+    farmerId,
+    ...stats,
+    percentageOfTotalRevenue: globalTotalRevenue > 0 ? 
+      (stats.totalRevenue / globalTotalRevenue) * 100 : 0
+  }));
+
+  return {
+    totalFarmers: Object.keys(farmerStats).length,
+    globalTotalRevenue,
+    farmers: farmersArray.sort((a, b) => b.totalRevenue - a.totalRevenue)
+  };
+}
+async calculateBuyerStats(orders: any[]) {
+  const buyerStats: Record<string, {
+    buyerName: string;
+    buyerEmail: string;
+    totalOrders: number;
+    totalProducts: number;
+    totalSpent: number;
+    favoriteCategory: string;
+    products: Record<string, {
+      name: string;
+      category: string;
+      price: number;
+      quantity: number;
+      amount: number;
+    }>;
+    categories: Record<string, {
+      quantity: number;
+      amount: number;
+    }>;
+  }> = {};
+
+  let globalTotalRevenue = 0;
+
+  await Promise.all(
+    orders.map(async (order) => {
+      try {
+        const buyerId = order.fields.buyerId[0]; // Adaptez selon votre schéma de données
+        //const farmerId = order.farmerId || payments[0]?.farmerId;
+        if (!buyerId) return;
+
+        // Initialisation acheteur
+        if (!buyerStats[buyerId]) {
+          buyerStats[buyerId] = {
+            buyerName: order.fields.buyerName[0] || 'Acheteur inconnu',
+            buyerEmail: order.fields.buyerEmail[0] || '',
+            totalOrders: 0,
+            totalProducts: 0,
+            totalSpent: 0,
+            favoriteCategory: '',
+            products: {},
+            categories: {}
+          };
+        }
+
+        buyerStats[buyerId].totalOrders++;
+        const payments = await this.getOrderPayments(order.id);
+
+        // Analyse des produits
+        payments.forEach(payment => {
+          payment.products.forEach(product => {
+            if (!product.productId) return;
+
+            // Statistiques produits
+            if (!buyerStats[buyerId].products[product.productId]) {
+              buyerStats[buyerId].products[product.productId] = {
+                name: product.lib || 'Inconnu',
+                category: product.category || 'Inconnue',
+                price: product.price || 'Inconnue',
+                quantity: 0,
+                amount: 0
+              };
+              buyerStats[buyerId].totalProducts++;
+            }
+
+            buyerStats[buyerId].products[product.productId].quantity += product.quantity || 0;
+            buyerStats[buyerId].products[product.productId].amount += product.total || 0;
+
+            // Statistiques catégories
+            const category = product.category || 'Non catégorisé';
+            if (!buyerStats[buyerId].categories[category]) {
+              buyerStats[buyerId].categories[category] = {
+                quantity: 0,
+                amount: 0
+              };
+            }
+
+            buyerStats[buyerId].categories[category].quantity += product.quantity || 0;
+            buyerStats[buyerId].categories[category].amount += product.total || 0;
+            buyerStats[buyerId].totalSpent += product.total || 0;
+            globalTotalRevenue += product.total || 0;
+          });
+        });
+
+        // Détermination de la catégorie favorite
+        if (Object.keys(buyerStats[buyerId].categories).length > 0) {
+          buyerStats[buyerId].favoriteCategory = Object.entries(buyerStats[buyerId].categories)
+            .sort((a, b) => b[1].amount - a[1].amount)[0][0];
+        }
+
+      } catch (error) {
+        console.error(`Erreur commande ${order.id}:`, error.message);
+      }
+    })
+  );
+
+  // Formatage de la réponse
+  const buyersArray = Object.entries(buyerStats).map(([buyerId, stats]) => ({
+    buyerId,
+    ...stats,
+    percentageOfTotalSpent: globalTotalRevenue > 0 ? 
+      (stats.totalSpent / globalTotalRevenue) * 100 : 0,
+    // Transformation des catégories pour le frontend
+    categoryStats: Object.entries(stats.categories).map(([category, data]) => ({
+      category,
+      ...data,
+      percentage: (data.amount / stats.totalSpent) * 100
+    }))
+  }));
+
+  return {
+    totalBuyers: Object.keys(buyerStats).length,
+    globalTotalRevenue,
+    buyers: buyersArray.sort((a, b) => b.totalSpent - a.totalSpent)
+  };
+}
+}

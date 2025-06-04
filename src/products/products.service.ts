@@ -54,7 +54,7 @@ export class ProductsService {
 
 async findAll(): Promise<any[]> {
   try {
-    console.log('Récupération de tous les enregistrements...');
+    console.log('Récupération de tous les produits...');
 
     let allRecords: any[] = [];
     let offset: string | undefined = undefined;

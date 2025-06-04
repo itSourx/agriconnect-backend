@@ -10,6 +10,7 @@ export declare class OrdersService {
     constructor(productsService: ProductsService, usersService: UsersService);
     private getHeaders;
     private getUrl;
+    batchGetOrderPayments(orderIds: string[]): Promise<any[]>;
     findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     getOrderById(orderId: string): Promise<any>;
@@ -26,4 +27,71 @@ export declare class OrdersService {
     generateInvoice(orderId: string): Promise<Buffer>;
     sendInvoiceByEmail(orderId: string, buyerEmail: string): Promise<void>;
     getFarmerClients(farmerId: string): Promise<any>;
+    calculateOrderStats(orders: any[]): Promise<{
+        totalOrders: number;
+        totalProducts: number;
+        globalTotalRevenue: number;
+        products: {
+            percentageOfTotal: number;
+            percentageOfOrders: number;
+            orderCount: number;
+            productName: string;
+            category: string;
+            mesure: string;
+            totalQuantity: number;
+            totalRevenue: number;
+            productId: string;
+        }[];
+    }>;
+    calculateFarmerStats(orders: any[]): Promise<{
+        totalFarmers: number;
+        globalTotalRevenue: number;
+        farmers: {
+            percentageOfTotalRevenue: number;
+            farmerName: string;
+            farmerEmail: string;
+            totalOrders: number;
+            totalProducts: number;
+            totalRevenue: number;
+            products: Record<string, {
+                name: string;
+                category: string;
+                price: number;
+                quantity: number;
+                revenue: number;
+            }>;
+            farmerId: string;
+        }[];
+    }>;
+    calculateBuyerStats(orders: any[]): Promise<{
+        totalBuyers: number;
+        globalTotalRevenue: number;
+        buyers: {
+            percentageOfTotalSpent: number;
+            categoryStats: {
+                percentage: number;
+                quantity: number;
+                amount: number;
+                category: string;
+            }[];
+            buyerName: string;
+            buyerEmail: string;
+            totalOrders: number;
+            totalProducts: number;
+            totalSpent: number;
+            favoriteCategory: string;
+            products: Record<string, {
+                name: string;
+                category: string;
+                price: number;
+                quantity: number;
+                amount: number;
+            }>;
+            categories: Record<string, {
+                quantity: number;
+                amount: number;
+            }>;
+            buyerId: string;
+        }[];
+    }>;
 }
