@@ -294,10 +294,10 @@ async findAll(): Promise<any[]> {
         const uploadedGalleryImages = await Promise.all(
           galleryFiles.map(async (file) => {
             try {
-                                // Valider le format de chaque image avant upload
+                // Valider le format de chaque image avant upload
                 const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
                 
-                for (const file of files) {
+                for (const file of galleryFiles) {
                     if (!allowedMimeTypes.includes(file.mimetype)) {
                         // Supprimer le fichier local invalide
                         if (file.path) {
