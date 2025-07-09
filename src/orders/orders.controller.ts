@@ -352,7 +352,11 @@ async getBuyerDetailedStats(
   // Vérifier si l'utilisateur est bien l'agriculteur associé à la commande
   const farmerId = existingOrder.fields.farmerId[0];
   //if (farmerId !== userId || req.user.profile !== 'ADMIN') {
-  if (req.user.profile !== 'ADMIN' || req.user.profile !== 'SUPERADMIN') {
+  /*if (req.user.profile !== 'ADMIN' || req.user.profile !== 'SUPERADMIN') {
+    throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
+  }*/
+  const allowedProfiles = ['ADMIN', 'SUPERADMIN'];
+  if (!allowedProfiles.includes(req.user.profile)) {
     throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
   }
 
