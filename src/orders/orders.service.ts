@@ -525,7 +525,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const mesure = product.fields.mesure; // mesure du produit
     const category = product.fields.category; // categorie du produit
     const zone = product.fields.location;
-    //const Photo = product.fields.Photo; // Image du produit
+    const Photo = product.fields.Photo; // Image du produit
 
     // Récupérer les détails de l'agriculteur
     const farmer = await this.usersService.findOne(farmerId);
@@ -561,7 +561,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       mesure,
       zone,
       total: totalAmount,
-      //Photo,
+      Photo,
     });
   }
 
