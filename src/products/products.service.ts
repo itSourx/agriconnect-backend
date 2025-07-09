@@ -161,6 +161,21 @@ async findAll(): Promise<any[]> {
       const uploadedImages = await Promise.all(
         files.map(async (file) => {
           try {
+                  // Valider le format de chaque image avant upload
+                const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                
+                for (const file of files) {
+                    if (!allowedMimeTypes.includes(file.mimetype)) {
+                        // Supprimer le fichier local invalide
+                        if (file.path) {
+                            unlinkSync(file.path);
+                        }
+                        throw new Error(
+                            `Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                            `Seuls les formats JPEG, JPG et PNG sont acceptés.`
+                        );
+                    }
+                }
             // Uploader l'image vers GCS
             const publicUrl = await this.gcsService.uploadImage(file.path);
 
@@ -241,6 +256,21 @@ async findAll(): Promise<any[]> {
         const uploadedImages = await Promise.all(
           files.map(async (file) => {
             try {
+                // Valider le format de chaque image avant upload
+                const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                
+                for (const file of files) {
+                    if (!allowedMimeTypes.includes(file.mimetype)) {
+                        // Supprimer le fichier local invalide
+                        if (file.path) {
+                            unlinkSync(file.path);
+                        }
+                        throw new Error(
+                            `Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                            `Seuls les formats JPEG, JPG et PNG sont acceptés.`
+                        );
+                    }
+                }
               // Uploader l'image vers GCS
               const publicUrl = await this.gcsService.uploadImage(file.path);
 
@@ -264,6 +294,22 @@ async findAll(): Promise<any[]> {
         const uploadedGalleryImages = await Promise.all(
           galleryFiles.map(async (file) => {
             try {
+                                // Valider le format de chaque image avant upload
+                const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                
+                for (const file of files) {
+                    if (!allowedMimeTypes.includes(file.mimetype)) {
+                        // Supprimer le fichier local invalide
+                        if (file.path) {
+                            unlinkSync(file.path);
+                        }
+                        throw new Error(
+                            `Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                            `Seuls les formats JPEG, JPG et PNG sont acceptés.`
+                        );
+                    }
+                }
+                
               // Uploader l'image vers GCS
               const publicUrl = await this.gcsService.uploadImage(file.path);
 
