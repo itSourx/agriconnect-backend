@@ -524,10 +524,9 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const lib = product.fields.Name; // Libellé du produit
     const mesure = product.fields.mesure; // mesure du produit
     const category = product.fields.category; // categorie du produit
-    const zone = product.fields.location; // Image du produit
+    const zone = product.fields.location;
+    const Photo = product.fields.Photo; // Image du produit
 
-
-    
     // Récupérer les détails de l'agriculteur
     const farmer = await this.usersService.findOne(farmerId);
     const name = farmer.fields.name || 'Nom inconnu';
@@ -555,7 +554,6 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     farmerPayments[farmerId].totalProducts += 1; // Incrémenter le nombre de produits distincts
     farmerPayments[farmerId].products.push({
       productId,
-      //img,
       lib,
       category,
       quantity,
@@ -563,6 +561,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       mesure,
       zone,
       total: totalAmount,
+      Photo,
     });
   }
 

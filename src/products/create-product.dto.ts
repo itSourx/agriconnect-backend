@@ -55,12 +55,12 @@ export class CreateProductDto {
   @IsEmail()
   email: string;
 
-  /*@ApiProperty({
+  @ApiProperty({
     example: 'Porto',
     description: 'L\'adresse où le produit peut être retrouvé',
   })
   @IsString()
-  location: string;*/
+  location: string;
 
   @ApiProperty({
     description: 'Array of photo URLs for the product',

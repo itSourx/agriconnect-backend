@@ -343,22 +343,19 @@ async getBuyerDetailedStats(
   async updateStatus(@Param('id') orderId: string, @Body('status') status: string,   @Request() req
 ) {
     try {
-  // Récupérer l'ID de l'utilisateur authentifié
-  const userId = req.user.id;
+      // Récupérer l'ID de l'utilisateur authentifié
+      const userId = req.user.id;
 
-  // Récupérer la commande existante
-  const existingOrder = await this.ordersService.findOne(orderId);
+      // Récupérer la commande existante
+      const existingOrder = await this.ordersService.findOne(orderId);
 
-  // Vérifier si l'utilisateur est bien l'agriculteur associé à la commande
-  const farmerId = existingOrder.fields.farmerId[0];
-  //if (farmerId !== userId || req.user.profile !== 'ADMIN') {
-  /*if (req.user.profile !== 'ADMIN' || req.user.profile !== 'SUPERADMIN') {
-    throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
-  }*/
-  const allowedProfiles = ['ADMIN', 'SUPERADMIN'];
-  if (!allowedProfiles.includes(req.user.profile)) {
-    throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
-  }
+      // Vérifier si l'utilisateur est bien l'agriculteur associé à la commande
+      const farmerId = existingOrder.fields.farmerId[0];
+      
+      const allowedProfiles = ['ADMIN', 'SUPERADMIN'];
+      if (!allowedProfiles.includes(req.user.profile)) {
+        throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
+      }
 
       // Appeler le service pour mettre à jour le statut de la commande
       return this.ordersService.updateStatus(orderId, status);
