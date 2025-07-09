@@ -2,10 +2,12 @@ import { Response } from 'express';
 import { OrdersService } from './orders.service';
 import { ProductsService } from '../products/products.service';
 import { CreateOrderDto } from './create-order.dto';
+import { UsersService } from '../users/users.service';
 export declare class OrdersController {
     private readonly ordersService;
     private readonly productsService;
-    constructor(ordersService: OrdersService, productsService: ProductsService);
+    private readonly usersService;
+    constructor(ordersService: OrdersService, productsService: ProductsService, usersService: UsersService);
     private getUrl;
     private getHeaders;
     findAll(): Promise<any[]>;
@@ -101,6 +103,56 @@ export declare class OrdersController {
             start: string;
             end: string;
         };
+    }>;
+    getBuyerDetailedStats(buyerId: string, dateRange: {
+        startDate?: string;
+        endDate?: string;
+    }): Promise<{
+        message: string;
+        buyerId: string;
+        period: {
+            start: string;
+            end: string;
+        };
+        stats: null;
+        success?: undefined;
+    } | {
+        success: boolean;
+        buyerId: string;
+        period: {
+            start: string;
+            end: string;
+        };
+        stats: {
+            buyerName: string;
+            buyerEmail: string;
+            totalOrders: number;
+            totalProducts: number;
+            totalSpent: number;
+            averageOrderValue: number;
+            favoriteCategory: string;
+            products: Record<string, {
+                name: string;
+                category: string;
+                price: number;
+                quantity: number;
+                amount: number;
+                lastOrderDate: string;
+            }>;
+            categories: Record<string, {
+                name: string;
+                category: string;
+                price: number;
+                quantity: number;
+                amount: number;
+            }>;
+            orderTimeline: {
+                date: string;
+                amount: number;
+                productCount: number;
+            }[];
+        };
+        message?: undefined;
     }>;
     findOne(id: string): Promise<any>;
     create(createOrderDto: CreateOrderDto, req: any): Promise<any>;

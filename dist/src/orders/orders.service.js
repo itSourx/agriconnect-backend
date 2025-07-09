@@ -1057,6 +1057,88 @@ let OrdersService = class OrdersService {
             buyers: buyersArray.sort((a, b) => b.totalSpent - a.totalSpent)
         };
     }
+    async calculateSingleBuyerStats(buyerId, orders) {
+        const buyerStats = {
+            buyerName: '',
+            buyerEmail: '',
+            totalOrders: 0,
+            totalProducts: 0,
+            totalSpent: 0,
+            averageOrderValue: 0,
+            favoriteCategory: '',
+            products: {},
+            categories: {},
+            orderTimeline: []
+        };
+        const firstOrder = orders[0];
+        buyerStats.buyerName = firstOrder.fields.buyerName[0] || 'Acheteur inconnu';
+        buyerStats.buyerEmail = firstOrder.fields.buyerEmail[0] || '';
+        await Promise.all(orders.map(async (order) => {
+            try {
+                buyerStats.totalOrders++;
+                const payments = await this.getOrderPayments(order.id);
+                const orderDate = new Date(order.createdAt || order.fields?.createdAt).toISOString().split('T')[0];
+                let orderProductCount = 0;
+                let orderAmount = 0;
+                payments.forEach(payment => {
+                    payment.products.forEach(product => {
+                        if (!product.productId)
+                            return;
+                        if (!buyerStats.products[product.productId]) {
+                            buyerStats.products[product.productId] = {
+                                name: product.lib || 'Inconnu',
+                                category: product.category || 'Inconnue',
+                                price: product.price || 'Inconnue',
+                                quantity: 0,
+                                amount: 0,
+                                lastOrderDate: orderDate
+                            };
+                            buyerStats.totalProducts++;
+                        }
+                        else {
+                            if (new Date(orderDate) > new Date(buyerStats.products[product.productId].lastOrderDate)) {
+                                buyerStats.products[product.productId].lastOrderDate = orderDate;
+                            }
+                        }
+                        buyerStats.products[product.productId].quantity += product.quantity || 0;
+                        buyerStats.products[product.productId].amount += product.total || 0;
+                        orderProductCount++;
+                        orderAmount += product.total || 0;
+                        const category = product.category || 'Non catégorisé';
+                        if (!buyerStats.categories[category]) {
+                            buyerStats.categories[category] = {
+                                name: product.lib || 'Inconnu',
+                                category: product.category || 'Inconnue',
+                                price: product.price || 'Inconnue',
+                                quantity: 0,
+                                amount: 0
+                            };
+                        }
+                        buyerStats.categories[category].quantity += product.quantity || 0;
+                        buyerStats.categories[category].amount += product.total || 0;
+                    });
+                });
+                buyerStats.orderTimeline.push({
+                    date: orderDate,
+                    amount: orderAmount,
+                    productCount: orderProductCount
+                });
+                buyerStats.totalSpent += orderAmount;
+            }
+            catch (error) {
+                console.error(`Erreur commande ${order.id}:`, error.message);
+            }
+        }));
+        buyerStats.averageOrderValue = buyerStats.totalOrders > 0
+            ? buyerStats.totalSpent / buyerStats.totalOrders
+            : 0;
+        if (Object.keys(buyerStats.categories).length > 0) {
+            buyerStats.favoriteCategory = Object.entries(buyerStats.categories)
+                .sort((a, b) => b[1].amount - a[1].amount)[0][0];
+        }
+        buyerStats.orderTimeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return buyerStats;
+    }
 };
 exports.OrdersService = OrdersService;
 exports.OrdersService = OrdersService = __decorate([

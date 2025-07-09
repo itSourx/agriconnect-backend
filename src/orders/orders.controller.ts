@@ -6,7 +6,7 @@ import { CreateOrderDto } from './create-order.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import axios from 'axios';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
-//import { DateRangeDto, StatsResponse, FarmerStatsResponse } from './dto/stats.dto';
+import { UsersService } from '../users/users.service'; // Importez UsersService
 
 // Définissez les DTO avant le contrôleur
 class DateRangeDto {
@@ -38,7 +38,8 @@ class OrderStatsResponse {
 export class OrdersController {
   constructor
   (private readonly ordersService: OrdersService,
-   private readonly productsService: ProductsService) {}
+   private readonly productsService: ProductsService,
+   private readonly usersService: UsersService) {}
 
   // Méthode utilitaire pour obtenir l'URL de base d'Airtable
   private getUrl(): string {
@@ -225,11 +226,73 @@ async getBuyerStatistics(
   }
 }
 
+@Get('stats/buyers/:buyerId')
+async getBuyerDetailedStats(
+  @Param('buyerId') buyerId: string,
+  @Query() dateRange: { startDate?: string; endDate?: string }
+) {
+  try {
+    // Validation des dates
+    const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+
+    if (startDate && isNaN(startDate.getTime())) {
+      throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
+    }
+    if (endDate && isNaN(endDate.getTime())) {
+      throw new HttpException('Format de date de fin invalide', HttpStatus.BAD_REQUEST);
+    }
+
+    // Récupération des commandes filtrées
+    const allOrders = await this.ordersService.findAll();
+    const filteredOrders = allOrders.filter(order => {
+      const isBuyerMatch = order.fields.buyerId[0] === buyerId; // Filtre par acheteur
+      const orderDate = new Date(order.createdAt || order.fields?.date);
+      return (
+        isBuyerMatch &&
+        (!startDate || orderDate >= startDate) &&
+        (!endDate || orderDate <= endDate)
+      );
+    });
+
+    if (filteredOrders.length === 0) {
+      return {
+        message: 'Aucune commande trouvée pour cet acheteur sur la période sélectionnée',
+        buyerId,
+        period: {
+          start: startDate?.toISOString().split('T')[0] || 'Tous',
+          end: endDate?.toISOString().split('T')[0] || 'Tous'
+        },
+        stats: null
+      };
+    }
+
+    // Calcul des stats détaillées
+    const stats = await this.ordersService.calculateSingleBuyerStats(buyerId, filteredOrders);
+    
+    return {
+      success: true,
+      buyerId,
+      period: {
+        start: startDate?.toISOString().split('T')[0] || 'Tous',
+        end: endDate?.toISOString().split('T')[0] || 'Tous'
+      },
+      stats
+    };
+
+  } catch (error) {
+    throw new HttpException(
+      error.response?.message || 'Erreur de calcul des statistiques acheteur',
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);
   }
-  
+
     @Post()
     @UsePipes(new ValidationPipe())
     @UseGuards(AuthGuard)
@@ -288,7 +351,8 @@ async getBuyerStatistics(
 
   // Vérifier si l'utilisateur est bien l'agriculteur associé à la commande
   const farmerId = existingOrder.fields.farmerId[0];
-  if (farmerId !== userId || req.user.profile !== 'ADMIN') {
+  //if (farmerId !== userId || req.user.profile !== 'ADMIN') {
+  if (req.user.profile !== 'ADMIN' || req.user.profile !== 'SUPERADMIN') {
     throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
   }
 

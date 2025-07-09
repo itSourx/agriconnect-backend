@@ -94,4 +94,33 @@ export declare class OrdersService {
             buyerId: string;
         }[];
     }>;
+    calculateSingleBuyerStats(buyerId: string, orders: any[]): Promise<{
+        buyerName: string;
+        buyerEmail: string;
+        totalOrders: number;
+        totalProducts: number;
+        totalSpent: number;
+        averageOrderValue: number;
+        favoriteCategory: string;
+        products: Record<string, {
+            name: string;
+            category: string;
+            price: number;
+            quantity: number;
+            amount: number;
+            lastOrderDate: string;
+        }>;
+        categories: Record<string, {
+            name: string;
+            category: string;
+            price: number;
+            quantity: number;
+            amount: number;
+        }>;
+        orderTimeline: Array<{
+            date: string;
+            amount: number;
+            productCount: number;
+        }>;
+    }>;
 }

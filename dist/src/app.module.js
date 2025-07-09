@@ -16,6 +16,7 @@ const orders_module_1 = require("./orders/orders.module");
 const auth_module_1 = require("./auth/auth.module");
 const jwt_1 = require("@nestjs/jwt");
 const profiles_module_1 = require("./profiles/profiles.module");
+const contacts_module_1 = require("./contacts/contacts.module");
 const dotenv = require("dotenv");
 dotenv.config();
 let AppModule = class AppModule {
@@ -26,7 +27,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [users_module_1.UsersModule, products_module_1.ProductsModule, orders_module_1.OrdersModule, auth_module_1.AuthModule, profiles_module_1.ProfilesModule, jwt_1.JwtModule.register({
                 secret: process.env.JWT_SECRET,
                 signOptions: { expiresIn: '60m' },
-            }), profiles_module_1.ProfilesModule, products_module_1.ProductsModule,],
+            }), profiles_module_1.ProfilesModule, products_module_1.ProductsModule, contacts_module_1.ContactsModule,],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

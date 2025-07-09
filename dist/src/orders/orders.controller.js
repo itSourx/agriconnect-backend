@@ -19,6 +19,7 @@ const products_service_1 = require("../products/products.service");
 const create_order_dto_1 = require("./create-order.dto");
 const auth_guard_1 = require("../auth/auth.guard");
 const axios_1 = require("axios");
+const users_service_1 = require("../users/users.service");
 class DateRangeDto {
 }
 class ProductStatDto {
@@ -26,9 +27,10 @@ class ProductStatDto {
 class OrderStatsResponse {
 }
 let OrdersController = class OrdersController {
-    constructor(ordersService, productsService) {
+    constructor(ordersService, productsService, usersService) {
         this.ordersService = ordersService;
         this.productsService = productsService;
+        this.usersService = usersService;
     }
     getUrl() {
         return `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Orders`;
@@ -146,6 +148,50 @@ let OrdersController = class OrdersController {
         }
         catch (error) {
             throw new common_1.HttpException(error.response?.message || 'Erreur de calcul des statistiques acheteurs', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getBuyerDetailedStats(buyerId, dateRange) {
+        try {
+            const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+            const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            if (startDate && isNaN(startDate.getTime())) {
+                throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (endDate && isNaN(endDate.getTime())) {
+                throw new common_1.HttpException('Format de date de fin invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const allOrders = await this.ordersService.findAll();
+            const filteredOrders = allOrders.filter(order => {
+                const isBuyerMatch = order.fields.buyerId[0] === buyerId;
+                const orderDate = new Date(order.createdAt || order.fields?.date);
+                return (isBuyerMatch &&
+                    (!startDate || orderDate >= startDate) &&
+                    (!endDate || orderDate <= endDate));
+            });
+            if (filteredOrders.length === 0) {
+                return {
+                    message: 'Aucune commande trouvée pour cet acheteur sur la période sélectionnée',
+                    buyerId,
+                    period: {
+                        start: startDate?.toISOString().split('T')[0] || 'Tous',
+                        end: endDate?.toISOString().split('T')[0] || 'Tous'
+                    },
+                    stats: null
+                };
+            }
+            const stats = await this.ordersService.calculateSingleBuyerStats(buyerId, filteredOrders);
+            return {
+                success: true,
+                buyerId,
+                period: {
+                    start: startDate?.toISOString().split('T')[0] || 'Tous',
+                    end: endDate?.toISOString().split('T')[0] || 'Tous'
+                },
+                stats
+            };
+        }
+        catch (error) {
+            throw new common_1.HttpException(error.response?.message || 'Erreur de calcul des statistiques acheteur', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     async findOne(id) {
@@ -436,6 +482,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getBuyerStatistics", null);
 __decorate([
+    (0, common_1.Get)('stats/buyers/:buyerId'),
+    __param(0, (0, common_1.Param)('buyerId')),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getBuyerDetailedStats", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -550,6 +604,7 @@ __decorate([
 exports.OrdersController = OrdersController = __decorate([
     (0, common_1.Controller)('orders'),
     __metadata("design:paramtypes", [orders_service_1.OrdersService,
-        products_service_1.ProductsService])
+        products_service_1.ProductsService,
+        users_service_1.UsersService])
 ], OrdersController);
 //# sourceMappingURL=orders.controller.js.map

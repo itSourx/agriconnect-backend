@@ -7,6 +7,7 @@ import { OrdersModule } from './orders/orders.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ProfilesModule } from './profiles/profiles.module';
+import { ContactsModule } from './contacts/contacts.module';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,7 +16,7 @@ dotenv.config();
   imports: [UsersModule, ProductsModule, OrdersModule, AuthModule, ProfilesModule, JwtModule.register({
     secret: process.env.JWT_SECRET, // Utilisez la clé secrète depuis .env
     signOptions: { expiresIn: '60m' }, // Optionnel : durée de vie du token (par défaut : 1 heure)
-  }), ProfilesModule,ProductsModule,],
+  }), ProfilesModule,ProductsModule, ContactsModule,],
   controllers: [AppController],
   providers: [AppService],
 })
