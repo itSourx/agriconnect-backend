@@ -617,25 +617,19 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
      let farmerPayments;
       try {
         if (typeof fields.farmerPayments === 'string') {
-          // Si c’est une chaîne (JSON), on parse
-          farmerPayments = JSON.parse(fields.farmerPayments);
+          // Corrige les backslashes suspects
+          const safeJson = fields.farmerPayments.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+          farmerPayments = JSON.parse(safeJson);
         } else if (Array.isArray(fields.farmerPayments)) {
-          // Si c’est déjà un tableau JS
           farmerPayments = fields.farmerPayments;
         } else {
-          console.warn(`Champ farmerPayments inconnu pour la commande ${orderId}`, fields.farmerPayments);
-          continue;
-        }
-
-        if (!Array.isArray(farmerPayments)) {
-          console.warn(`farmerPayments n’est pas un tableau pour la commande ${orderId}`);
+          console.warn(`Format inattendu de farmerPayments pour la commande ${orderId}:`, fields.farmerPayments);
           continue;
         }
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}:`, error.message);
         continue;
       }
-
 
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
