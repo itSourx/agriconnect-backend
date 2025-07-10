@@ -1504,6 +1504,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
     
           const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
           const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
+          const buyerPhone = order.buyerPhone.length > 0 ? order.buyerPhone[0] : '';
+          const buyerPhoto = order.buyerPhoto.length > 0 ? order.buyerPhoto[0] : '';
           const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
     
           console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
@@ -1599,6 +1601,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
               clientStats.set(buyerEmail, {
                 buyerName,
                 buyerEmail,
+                buyerPhone,
+                buyerPhoto,
                 orderCount: 1,
                 totalSpent: totalAmount,
                 firstOrderDate: order.createdDate,
