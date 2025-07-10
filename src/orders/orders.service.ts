@@ -531,7 +531,8 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     const mesure = product.fields.mesure; // mesure du produit
     const category = product.fields.category; // categorie du produit
     const zone = product.fields.location;
-    const Photo = product.fields.Photo; // Image du produit
+    //const Photo = product.fields.Photo; // Image du produit
+    const Photo = (product.fields.Photo || []).map(p => p.url);
 
     // Récupérer les détails de l'agriculteur
     const farmer = await this.usersService.findOne(farmerId);
@@ -614,7 +615,7 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
       }*/
-     let farmerPayments;
+     /*let farmerPayments;
       try {
         if (typeof fields.farmerPayments === 'string') {
           // Corrige les backslashes suspects
@@ -628,6 +629,14 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         }
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}:`, error.message);
+        continue;
+      }*/
+      let farmerPayments: any[];
+      try {
+        farmerPayments = JSON.parse(fields.farmerPayments);
+        if (!Array.isArray(farmerPayments)) continue;
+      } catch (error) {
+        console.error(`Erreur JSON dans farmerPayments de la commande ${orderId}:`, error.message);
         continue;
       }
 
