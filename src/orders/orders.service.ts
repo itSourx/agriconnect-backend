@@ -16,18 +16,18 @@ import { Buffer } from 'buffer';
 dotenv.config();
 
 interface FarmerOrder {
-      orderId: string;
-      orderNumber: string;
-      buyerName: string;
-      buyerEmail: string;
-      buyerPhone: string;
-      buyerPhoto: string;
-      totalAmount: number;
-      totalProducts: number;
-      products: any[];
-      status: string;
-      statusDate: string;
-      createdDate: string;
+  orderId: string;
+  orderNumber: string;
+  buyerName: string;
+  buyerEmail: string; // Tous les champs sont obligatoires dans la déclaration
+  buyerPhone: string;
+  buyerPhoto: string;
+  totalAmount: number;
+  totalProducts: number;
+  products: Product[]; // Utilisez une interface Product si disponible
+  status: string;
+  statusDate: string;
+  createdDate: string;
 }
 
 // Définir une interface pour représenter un produit
@@ -669,69 +669,38 @@ async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
   try {
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
     const orders = response.data.records;
-    // Déclarer explicitement le type du tableau farmerOrders
-    /*type FarmerOrder = {
-      orderId: string;
-      orderNumber: string;
-      buyerName: string;
-      buyerEmail: string;
-      buyerPhone: string;
-      buyerPhoto: string;
-      totalAmount: number;
-      totalProducts: number;
-      products: any[];
-      status: string;
-      statusDate: string;
-      createdDate: string;
-    };*/
 
-    const farmerOrders: FarmerOrder[] = [];
-
-    for (const order of orders) {
+    return orders.reduce((acc: FarmerOrder[], order) => {
       try {
-        const orderId = order.id;
         const fields = order.fields;
-
-        // Gestion robuste de farmerPayments
         const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
-        if (!farmerPayments?.length) continue;
-
-        // Trouver les paiements spécifiques à cet agriculteur
-        const farmerPayment = farmerPayments.find(payment => 
-          payment?.farmerId === farmerId
-        );
+        const farmerPayment = farmerPayments.find(p => p?.farmerId === farmerId);
 
         if (farmerPayment) {
-          const formattedDate = fields.createdAt 
-            ? format(new Date(fields.createdAt), 'dd/MM/yyyy HH:mm') 
-            : 'Date inconnue';
-
-          const formattedStatusDate = fields.statusDate
-            ? format(new Date(fields.statusDate), 'dd/MM/yyyy HH:mm')
-            : 'Date inconnue';
-
-          farmerOrders.push({
-            orderId,
-            orderNumber: fields.orderNumber || 'N/A',
-            buyerName: fields.buyerName || 'Non spécifié',
+          acc.push({
+            orderId: order.id,
+            orderNumber: fields.orderNumber || '',
+            buyerName: fields.buyerName || '',
             buyerEmail: fields.buyerEmail || '',
             buyerPhone: fields.buyerPhone || '',
             buyerPhoto: fields.buyerPhoto?.[0]?.url || '',
             totalAmount: farmerPayment.totalAmount || 0,
-            status: fields.status || 'inconnu',
-            createdDate: formattedDate,
-            statusDate: formattedStatusDate,
             totalProducts: farmerPayment.totalProducts || 0,
             products: farmerPayment.products || [],
+            status: fields.status || '',
+            statusDate: fields.statusDate 
+              ? format(new Date(fields.statusDate), 'dd/MM/yyyy HH:mm')
+              : '',
+            createdDate: fields.createdAt
+              ? format(new Date(fields.createdAt), 'dd/MM/yyyy HH:mm')
+              : ''
           });
         }
       } catch (error) {
-        console.error(`Erreur sur la commande ${order.id}:`, error.message);
-        continue;
+        console.error(`Error processing order ${order.id}:`, error);
       }
-    }
-
-    return farmerOrders;
+      return acc;
+    }, []);
   } catch (error) {
     console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
     throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
