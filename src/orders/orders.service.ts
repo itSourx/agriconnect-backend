@@ -582,6 +582,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       orderNumber: string;
       buyerName: string;
       buyerEmail: string;
+      buyerPhone: string;
+      buyerPhoto: string;
       totalAmount: number;
       totalProducts: number;
       products: any[];
@@ -624,6 +626,8 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
           orderNumber: fields.orderNumber,
           buyerName: fields.buyerName,
           buyerEmail: fields.buyerEmail,
+          buyerPhone: fields.buyerPhone,
+          buyerPhoto: fields.buyerPhoto,
           totalAmount: farmerPayment.totalAmount,
           status: fields.status,
           createdDate: formattedDate,
