@@ -574,7 +574,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
 }
 
 // Récupérer les commandes pour un agriculteur spécifique
-/*async getOrdersByFarmer(farmerId: string): Promise<any> {
+async getOrdersByFarmer(farmerId: string): Promise<any> {
   try {
     // Récupérer toutes les commandes depuis Airtable
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
@@ -606,13 +606,16 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       // Vérifier si le champ farmerPayments existe et contient des données
       if (!fields.farmerPayments) continue;
 
-      let farmerPayments;
+      /*let farmerPayments;
       try {
         farmerPayments = JSON.parse(fields.farmerPayments); // Parser les paiements en JSON
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
-      }
+      }*/
+      // Gestion robuste de farmerPayments
+        const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
+        if (!farmerPayments?.length) continue;
 
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
@@ -647,79 +650,6 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
   } catch (error) {
     console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
     throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
-  }
-}*/
-//getOrdersByFarmer Version modifiée au 10-07-2025 à 17h35
-async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
-  try {
-    const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
-    const orders = response.data.records;
-    //const farmerOrders: FarmerOrder[] = [];
-    
-    // Déclarer explicitement le type du tableau farmerOrders
-    type FarmerOrder = {
-      orderId: string;
-      orderNumber: string;
-      buyerName: string;
-      buyerEmail: string;
-      buyerPhone: string;
-      buyerPhoto: string;
-      totalAmount: number;
-      totalProducts: number;
-      products: any[];
-      status: string;
-      statusDate: string;
-      createdDate: string;
-    };
-
-    const farmerOrders: FarmerOrder[] = [];
-
-
-    for (const order of orders) {
-      try {
-        const orderId = order.id;
-        const fields = order.fields;
-
-        // Gestion robuste de farmerPayments
-        const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
-        if (!farmerPayments?.length) continue;
-
-        // Trouver le paiement spécifique
-        const farmerPayment = farmerPayments.find(p => p.farmerId === farmerId);
-        if (!farmerPayment) continue;
-
-        // Formattage des dates
-        const formatDate = (dateStr: string) => 
-          dateStr ? format(new Date(dateStr), 'dd/MM/yyyy HH:mm') : 'Date inconnue';
-
-        farmerOrders.push({
-          orderId,
-          orderNumber: fields.orderNumber || 'N/A',
-          buyerName: fields.buyerName || 'Non renseigné',
-          buyerEmail: fields.buyerEmail,
-          buyerPhone: fields.buyerPhone,
-          buyerPhoto: fields.buyerPhoto?.[0]?.url, // Prend la première photo si disponible
-          totalAmount: farmerPayment.totalAmount || 0,
-          status: fields.status || 'inconnu',
-          createdDate: formatDate(fields.createdAt),
-          statusDate: formatDate(fields.statusDate),
-          totalProducts: farmerPayment.totalProducts || 0,
-          products: farmerPayment.products || [],
-        });
-
-      } catch (error) {
-        console.error(`Erreur sur la commande ${order.id}:`, error.message);
-        continue;
-      }
-    }
-
-    return farmerOrders.sort((a, b) => 
-      new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
-    );
-    
-  } catch (error) {
-    console.error('Erreur globale:', error.response?.data || error.message);
-    throw new Error('Erreur lors de la récupération des commandes');
   }
 }
 
