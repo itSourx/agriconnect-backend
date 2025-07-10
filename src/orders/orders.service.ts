@@ -14,6 +14,22 @@ import { Buffer } from 'buffer';
 //import { ProductStatDto, FarmerStatDto } from './dto/stats.dto';
 
 dotenv.config();
+
+interface FarmerOrder {
+      orderId: string;
+      orderNumber: string;
+      buyerName: string;
+      buyerEmail: string;
+      buyerPhone: string;
+      buyerPhoto: string;
+      totalAmount: number;
+      totalProducts: number;
+      products: any[];
+      status: string;
+      statusDate: string;
+      createdDate: string;
+}
+
 // Définir une interface pour représenter un produit
 interface Product {
   id: string;
@@ -654,7 +670,7 @@ async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
     const orders = response.data.records;
     // Déclarer explicitement le type du tableau farmerOrders
-    type FarmerOrder = {
+    /*type FarmerOrder = {
       orderId: string;
       orderNumber: string;
       buyerName: string;
@@ -667,7 +683,7 @@ async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
       status: string;
       statusDate: string;
       createdDate: string;
-    };
+    };*/
 
     const farmerOrders: FarmerOrder[] = [];
 
