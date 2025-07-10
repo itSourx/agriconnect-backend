@@ -87,17 +87,6 @@ interface OrderData {
   paymentReason?: string; // Optionnel
   //buyerEmail?: string; // Optionnel
 }
-interface FarmerStat {
-  farmerName: string;
-  totalOrders: number;
-  totalProducts: number;
-  totalRevenue: number;
-  products: Record<string, {
-    productName: string;
-    totalQuantity: number;
-    totalRevenue: number;
-  }>;
-}
 
 // Interface recommandée (à mettre en tête de fichier)
 interface FarmerOrder {
@@ -665,7 +654,26 @@ async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
   try {
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
     const orders = response.data.records;
+    //const farmerOrders: FarmerOrder[] = [];
+    
+    // Déclarer explicitement le type du tableau farmerOrders
+    type FarmerOrder = {
+      orderId: string;
+      orderNumber: string;
+      buyerName: string;
+      buyerEmail: string;
+      buyerPhone: string;
+      buyerPhoto: string;
+      totalAmount: number;
+      totalProducts: number;
+      products: any[];
+      status: string;
+      statusDate: string;
+      createdDate: string;
+    };
+
     const farmerOrders: FarmerOrder[] = [];
+
 
     for (const order of orders) {
       try {
