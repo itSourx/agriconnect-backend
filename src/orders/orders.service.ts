@@ -606,16 +606,16 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
       // Vérifier si le champ farmerPayments existe et contient des données
       if (!fields.farmerPayments) continue;
 
-      /*let farmerPayments;
+      let farmerPayments;
       try {
         farmerPayments = JSON.parse(fields.farmerPayments); // Parser les paiements en JSON
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
-      }*/
+      }
       // Gestion robuste de farmerPayments
-        const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
-        if (!farmerPayments?.length) continue;
+        /*const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
+        if (!farmerPayments?.length) continue;*/
 
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
