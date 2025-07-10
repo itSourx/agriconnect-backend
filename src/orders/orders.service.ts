@@ -574,7 +574,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
 }
 
 // Récupérer les commandes pour un agriculteur spécifique
-async getOrdersByFarmer(farmerId: string): Promise<any> {
+/*async getOrdersByFarmer(farmerId: string): Promise<any> {
   try {
     // Récupérer toutes les commandes depuis Airtable
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
@@ -613,9 +613,6 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
       }
-      // Gestion robuste de farmerPayments
-        /*const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
-        if (!farmerPayments?.length) continue;*/
 
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
@@ -651,31 +648,109 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
     console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
     throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
   }
+}*/
+async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
+  try {
+    const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
+    const orders = response.data.records;
+    // Déclarer explicitement le type du tableau farmerOrders
+    type FarmerOrder = {
+      orderId: string;
+      orderNumber: string;
+      buyerName: string;
+      buyerEmail: string;
+      buyerPhone: string;
+      buyerPhoto: string;
+      totalAmount: number;
+      totalProducts: number;
+      products: any[];
+      status: string;
+      statusDate: string;
+      createdDate: string;
+    };
+
+    const farmerOrders: FarmerOrder[] = [];
+
+    for (const order of orders) {
+      try {
+        const orderId = order.id;
+        const fields = order.fields;
+
+        // Gestion robuste de farmerPayments
+        const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
+        if (!farmerPayments?.length) continue;
+
+        // Trouver les paiements spécifiques à cet agriculteur
+        const farmerPayment = farmerPayments.find(payment => 
+          payment?.farmerId === farmerId
+        );
+
+        if (farmerPayment) {
+          const formattedDate = fields.createdAt 
+            ? format(new Date(fields.createdAt), 'dd/MM/yyyy HH:mm') 
+            : 'Date inconnue';
+
+          const formattedStatusDate = fields.statusDate
+            ? format(new Date(fields.statusDate), 'dd/MM/yyyy HH:mm')
+            : 'Date inconnue';
+
+          farmerOrders.push({
+            orderId,
+            orderNumber: fields.orderNumber || 'N/A',
+            buyerName: fields.buyerName || 'Non spécifié',
+            buyerEmail: fields.buyerEmail || '',
+            buyerPhone: fields.buyerPhone || '',
+            buyerPhoto: fields.buyerPhoto?.[0]?.url || '',
+            totalAmount: farmerPayment.totalAmount || 0,
+            status: fields.status || 'inconnu',
+            createdDate: formattedDate,
+            statusDate: formattedStatusDate,
+            totalProducts: farmerPayment.totalProducts || 0,
+            products: farmerPayment.products || [],
+          });
+        }
+      } catch (error) {
+        console.error(`Erreur sur la commande ${order.id}:`, error.message);
+        continue;
+      }
+    }
+
+    return farmerOrders;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
+    throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
+  }
 }
 
-// Nouvelle méthode helper pour le parsing sécurisé
-private parseFarmerPayments(paymentsData: any): any[] {
-  if (!paymentsData) return [];
-  
+// Nouvelle méthode helper pour la gestion des farmerPayments
+private parseFarmerPayments(farmerPayments: any): any[] {
   try {
-    // Cas 1 : Déjà un tableau
-    if (Array.isArray(paymentsData)) return paymentsData;
-    
-    // Cas 2 : Chaîne JSON
-    if (typeof paymentsData === 'string') {
-      const parsed = JSON.parse(paymentsData);
-      return Array.isArray(parsed) ? parsed : [parsed];
+    // Cas 1 : Données manquantes
+    if (!farmerPayments) return [];
+
+    // Cas 2 : Déjà un tableau
+    if (Array.isArray(farmerPayments)) return farmerPayments;
+
+    // Cas 3 : Chaîne JSON
+    if (typeof farmerPayments === 'string') {
+      try {
+        const parsed = JSON.parse(farmerPayments);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [];
+      }
     }
-    
-    // Cas 3 : Objet unique
-    if (typeof paymentsData === 'object') return [paymentsData];
-    
+
+    // Cas 4 : Objet unique
+    if (typeof farmerPayments === 'object') return [farmerPayments];
+
     return [];
   } catch (error) {
-    console.error('Erreur de parsing farmerPayments:', error);
+    console.error('Erreur de parsing:', error);
     return [];
   }
 }
+
 
   //getOrderPayments Version stable jusqu'au 10-07-2025
   /*async getOrderPayments(orderId: string): Promise<any> {
