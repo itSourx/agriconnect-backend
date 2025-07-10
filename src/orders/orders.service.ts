@@ -1508,11 +1508,16 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
     
           const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
           const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
-          const buyerPhone = order.buyerPhone.length > 0 ? order.buyerPhone[0] : '';
-          const buyerPhoto = order.buyerPhoto.length > 0 ? order.buyerPhoto[0] : '';
+          /*const buyerPhone = order.buyerPhone.length > 0 ? order.buyerPhone[0] : '';
+          //const buyerPhoto = order.buyerPhoto.length > 0 ? order.buyerPhoto[0] : '';
+          const buyerPhoto = Array.isArray(order.buyerPhoto) && order.buyerPhoto.length > 0 
+          ? order.buyerPhoto[0] 
+          : '';*/
+          const buyerPhone = (order.buyerPhone || []).length > 0 ? order.buyerPhone[0] : '';
+          const buyerPhoto = (order.buyerPhoto || []).length > 0 ? order.buyerPhoto[0] : '';
           const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
     
-          console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
+          console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}",buyerPhone extrait : "${buyerPhone}", buyerPhoto extrait : "${buyerPhoto}", totalAmount : ${totalAmount}`);
     
           if (buyerName && buyerEmail) {
             // Si le client existe déjà dans la Map, mettre à jour ses statistiques
