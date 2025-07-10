@@ -15,21 +15,6 @@ import { Buffer } from 'buffer';
 
 dotenv.config();
 
-interface FarmerOrder {
-  orderId: string;
-  orderNumber: string;
-  buyerName: string;
-  buyerEmail: string; // Tous les champs sont obligatoires dans la déclaration
-  buyerPhone: string;
-  buyerPhoto: string;
-  totalAmount: number;
-  totalProducts: number;
-  products: Product[]; // Utilisez une interface Product si disponible
-  status: string;
-  statusDate: string;
-  createdDate: string;
-}
-
 // Définir une interface pour représenter un produit
 interface Product {
   id: string;
@@ -590,7 +575,7 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
 }
 
 // Récupérer les commandes pour un agriculteur spécifique
-/*async getOrdersByFarmer(farmerId: string): Promise<any> {
+async getOrdersByFarmer(farmerId: string): Promise<any> {
   try {
     // Récupérer toutes les commandes depuis Airtable
     const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
@@ -622,13 +607,35 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
       // Vérifier si le champ farmerPayments existe et contient des données
       if (!fields.farmerPayments) continue;
 
-      let farmerPayments;
+      /*let farmerPayments;
       try {
         farmerPayments = JSON.parse(fields.farmerPayments); // Parser les paiements en JSON
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
+      }*/
+     let farmerPayments;
+      try {
+        if (typeof fields.farmerPayments === 'string') {
+          // Si c’est une chaîne (JSON), on parse
+          farmerPayments = JSON.parse(fields.farmerPayments);
+        } else if (Array.isArray(fields.farmerPayments)) {
+          // Si c’est déjà un tableau JS
+          farmerPayments = fields.farmerPayments;
+        } else {
+          console.warn(`Champ farmerPayments inconnu pour la commande ${orderId}`, fields.farmerPayments);
+          continue;
+        }
+
+        if (!Array.isArray(farmerPayments)) {
+          console.warn(`farmerPayments n’est pas un tableau pour la commande ${orderId}`);
+          continue;
+        }
+      } catch (error) {
+        console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}:`, error.message);
+        continue;
       }
+
 
       // Trouver les paiements spécifiques à cet agriculteur
       const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
@@ -660,47 +667,6 @@ async calculateFarmerPayments(products: string[], quantities: number[]): Promise
     }
 
     return farmerOrders;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
-    throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
-  }
-}*/
-async getOrdersByFarmer(farmerId: string): Promise<FarmerOrder[]> {
-  try {
-    const response = await axios.get(this.getUrl(), { headers: this.getHeaders() });
-    const orders = response.data.records;
-
-    return orders.reduce((acc: FarmerOrder[], order) => {
-      try {
-        const fields = order.fields;
-        const farmerPayments = this.parseFarmerPayments(fields.farmerPayments);
-        const farmerPayment = farmerPayments.find(p => p?.farmerId === farmerId);
-
-        if (farmerPayment) {
-          acc.push({
-            orderId: order.id,
-            orderNumber: fields.orderNumber || '',
-            buyerName: fields.buyerName || '',
-            buyerEmail: fields.buyerEmail || '',
-            buyerPhone: fields.buyerPhone || '',
-            buyerPhoto: fields.buyerPhoto?.[0]?.url || '',
-            totalAmount: farmerPayment.totalAmount || 0,
-            totalProducts: farmerPayment.totalProducts || 0,
-            products: farmerPayment.products || [],
-            status: fields.status || '',
-            statusDate: fields.statusDate 
-              ? format(new Date(fields.statusDate), 'dd/MM/yyyy HH:mm')
-              : '',
-            createdDate: fields.createdAt
-              ? format(new Date(fields.createdAt), 'dd/MM/yyyy HH:mm')
-              : ''
-          });
-        }
-      } catch (error) {
-        console.error(`Error processing order ${order.id}:`, error);
-      }
-      return acc;
-    }, []);
   } catch (error) {
     console.error('Erreur lors de la récupération des commandes pour l\'agriculteur :', error.response?.data || error.message);
     throw error; //('Impossible de récupérer les commandes pour cet agriculteur.');
