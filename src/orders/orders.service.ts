@@ -615,7 +615,7 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
         continue;
       }*/
-     /*let farmerPayments;
+     let farmerPayments;
       try {
         if (typeof fields.farmerPayments === 'string') {
           // Corrige les backslashes suspects
@@ -629,14 +629,6 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
         }
       } catch (error) {
         console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}:`, error.message);
-        continue;
-      }*/
-      let farmerPayments: any[];
-      try {
-        farmerPayments = JSON.parse(fields.farmerPayments);
-        if (!Array.isArray(farmerPayments)) continue;
-      } catch (error) {
-        console.error(`Erreur JSON dans farmerPayments de la commande ${orderId}:`, error.message);
         continue;
       }
 
