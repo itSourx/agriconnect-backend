@@ -641,60 +641,96 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
   }
 }
 
-/*async getOrderPayments(orderId: string): Promise<any> {
-  try {
-    // Récupérer la commande existante
-    const existingOrder = await this.findOne(orderId);
-
-    if (!existingOrder) {
-      throw new Error('Commande introuvable.');
-    }
-
-    // Vérifier si le champ farmerPayments existe
-    const farmerPayments = existingOrder.fields.farmerPayments;
-
-    if (!farmerPayments) {
-      throw new Error('Aucun détail de paiement trouvé pour cette commande.');
-    }
-
-    // Parser le champ farmerPayments (stocké sous forme de chaîne JSON)
-    let parsedPayments;
+  //getOrderPayments Version stable jusqu'au 10-07-2025
+  /*async getOrderPayments(orderId: string): Promise<any> {
     try {
-      parsedPayments = JSON.parse(farmerPayments);
+      // Récupérer la commande existante
+      const existingOrder = await this.findOne(orderId);
+
+      if (!existingOrder) {
+        throw new Error('Commande introuvable.');
+      }
+
+      // Vérifier si le champ farmerPayments existe
+      const farmerPayments = existingOrder.fields.farmerPayments;
+
+      if (!farmerPayments) {
+        throw new Error('Aucun détail de paiement trouvé pour cette commande.');
+      }
+
+      // Parser le champ farmerPayments (stocké sous forme de chaîne JSON)
+      let parsedPayments;
+      try {
+        parsedPayments = JSON.parse(farmerPayments);
+      } catch (error) {
+        throw new Error('Le format des détails de paiement est incorrect.');
+      }
+
+      // Retourner les détails des paiements
+      return parsedPayments;
     } catch (error) {
-      throw new Error('Le format des détails de paiement est incorrect.');
+      console.error('Erreur lors de la récupération des détails de paiement :', error.message);
+      throw error; // Propager l'erreur telle quelle
     }
-
-    // Retourner les détails des paiements
-    return parsedPayments;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des détails de paiement :', error.message);
-    throw error; // Propager l'erreur telle quelle
-  }
-}*/
-async getOrderPayments(orderId: string): Promise<any> {
-  try {
-    const existingOrder = await this.findOne(orderId);
-    if (!existingOrder) throw new Error('Commande introuvable.');
-
-    const farmerPayments = existingOrder.fields.farmerPayments;
-    if (!farmerPayments) throw new Error('Aucun détail de paiement trouvé.');
-
-    // ⚡ **Solution clé : Gestion des deux formats possibles**
+  }*/
+  // getOrderPayments Version 2 
+  /*async getOrderPayments(orderId: string): Promise<any> {
     try {
-      return typeof farmerPayments === 'string' 
-        ? JSON.parse(farmerPayments)  // Cas 1 : Parse si c'est une chaîne
-        : farmerPayments;             // Cas 2 : Retourne direct si déjà un tableau/objet
+      const existingOrder = await this.findOne(orderId);
+      if (!existingOrder) throw new Error('Commande introuvable.');
+
+      const farmerPayments = existingOrder.fields.farmerPayments;
+      if (!farmerPayments) throw new Error('Aucun détail de paiement trouvé.');
+
+      // ⚡ **Solution clé : Gestion des deux formats possibles**
+      try {
+        return typeof farmerPayments === 'string' 
+          ? JSON.parse(farmerPayments)  // Cas 1 : Parse si c'est une chaîne
+          : farmerPayments;             // Cas 2 : Retourne direct si déjà un tableau/objet
+      } catch (error) {
+        // 🛡️ **Fallback supplémentaire** (si JSON.parse échoue mais que c'est déjà un tableau)
+        if (Array.isArray(farmerPayments)) return farmerPayments;
+        throw new Error('Format des paiements invalide.');
+      }
     } catch (error) {
-      // 🛡️ **Fallback supplémentaire** (si JSON.parse échoue mais que c'est déjà un tableau)
+      console.error('Erreur:', error.message);
+      throw error;
+    }
+  }*/
+  // getOrderPayments Version 3
+  async getOrderPayments(orderId: string): Promise<any[]> {
+    try {
+      const existingOrder = await this.findOne(orderId);
+      if (!existingOrder) throw new Error('Commande introuvable');
+
+      const farmerPayments = existingOrder.fields.farmerPayments;
+      
+      // Cas 1 : Données manquantes
+      if (!farmerPayments) return [];
+
+      // Cas 2 : Déjà un tableau (votre cas actuel)
       if (Array.isArray(farmerPayments)) return farmerPayments;
-      throw new Error('Format des paiements invalide.');
+
+      // Cas 3 : Chaîne JSON (ancien format)
+      if (typeof farmerPayments === 'string') {
+        try {
+          const parsed = JSON.parse(farmerPayments);
+          return Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          return [];
+        }
+      }
+
+      // Cas 4 : Objet unique
+      if (typeof farmerPayments === 'object') return [farmerPayments];
+
+      // Fallback final
+      return [];
+    } catch (error) {
+      console.error(`Erreur critique: ${error.message}`);
+      return [];
     }
-  } catch (error) {
-    console.error('Erreur:', error.message);
-    throw error;
   }
-}
 
   private loadPdfFonts() {
     // Assigner explicitement les polices à pdfMake
