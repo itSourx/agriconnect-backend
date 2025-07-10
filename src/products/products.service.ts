@@ -185,7 +185,7 @@ async findAll(): Promise<any[]> {
             return publicUrl;
           } catch (error) {
             console.error('Erreur lors de l\'upload de l\'image :', error.message);
-            throw new Error('Impossible d\'uploader l\'image.');
+            throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
           }
         })
       );
@@ -280,7 +280,7 @@ async findAll(): Promise<any[]> {
               return publicUrl;
             } catch (error) {
               console.error('Erreur lors de l\'upload de l\'image :', error.message);
-              throw new Error('Impossible d\'uploader l\'image.');
+              throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
             }
           })
         );
@@ -319,7 +319,7 @@ async findAll(): Promise<any[]> {
               return publicUrl;
             } catch (error) {
               console.error('Erreur lors de l\'upload de l\'image :', error.message);
-              throw new Error('Impossible d\'uploader l\'image.');
+              throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
             }
           })
         );

@@ -641,7 +641,7 @@ async getOrdersByFarmer(farmerId: string): Promise<any> {
   }
 }
 
-async getOrderPayments(orderId: string): Promise<any> {
+/*async getOrderPayments(orderId: string): Promise<any> {
   try {
     // Récupérer la commande existante
     const existingOrder = await this.findOne(orderId);
@@ -671,7 +671,31 @@ async getOrderPayments(orderId: string): Promise<any> {
     console.error('Erreur lors de la récupération des détails de paiement :', error.message);
     throw error; // Propager l'erreur telle quelle
   }
+}*/
+async getOrderPayments(orderId: string): Promise<any> {
+  try {
+    const existingOrder = await this.findOne(orderId);
+    if (!existingOrder) throw new Error('Commande introuvable.');
+
+    const farmerPayments = existingOrder.fields.farmerPayments;
+    if (!farmerPayments) throw new Error('Aucun détail de paiement trouvé.');
+
+    // ⚡ **Solution clé : Gestion des deux formats possibles**
+    try {
+      return typeof farmerPayments === 'string' 
+        ? JSON.parse(farmerPayments)  // Cas 1 : Parse si c'est une chaîne
+        : farmerPayments;             // Cas 2 : Retourne direct si déjà un tableau/objet
+    } catch (error) {
+      // 🛡️ **Fallback supplémentaire** (si JSON.parse échoue mais que c'est déjà un tableau)
+      if (Array.isArray(farmerPayments)) return farmerPayments;
+      throw new Error('Format des paiements invalide.');
+    }
+  } catch (error) {
+    console.error('Erreur:', error.message);
+    throw error;
+  }
 }
+
   private loadPdfFonts() {
     // Assigner explicitement les polices à pdfMake
     //(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
