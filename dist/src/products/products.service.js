@@ -117,13 +117,23 @@ let ProductsService = ProductsService_1 = class ProductsService {
         if (files && files.length > 0) {
             const uploadedImages = await Promise.all(files.map(async (file) => {
                 try {
+                    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                    for (const file of files) {
+                        if (!allowedMimeTypes.includes(file.mimetype)) {
+                            if (file.path) {
+                                (0, fs_1.unlinkSync)(file.path);
+                            }
+                            throw new Error(`Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                                `Seuls les formats JPEG, JPG et PNG sont acceptés.`);
+                        }
+                    }
                     const publicUrl = await this.gcsService.uploadImage(file.path);
                     (0, fs_1.unlinkSync)(file.path);
                     return publicUrl;
                 }
                 catch (error) {
                     console.error('Erreur lors de l\'upload de l\'image :', error.message);
-                    throw new Error('Impossible d\'uploader l\'image.');
+                    throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
                 }
             }));
             data.Photo = uploadedImages.map(url => ({ url }));
@@ -168,13 +178,23 @@ let ProductsService = ProductsService_1 = class ProductsService {
             if (files && files.length > 0) {
                 const uploadedImages = await Promise.all(files.map(async (file) => {
                     try {
+                        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                        for (const file of files) {
+                            if (!allowedMimeTypes.includes(file.mimetype)) {
+                                if (file.path) {
+                                    (0, fs_1.unlinkSync)(file.path);
+                                }
+                                throw new Error(`Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                                    `Seuls les formats JPEG, JPG et PNG sont acceptés.`);
+                            }
+                        }
                         const publicUrl = await this.gcsService.uploadImage(file.path);
                         (0, fs_1.unlinkSync)(file.path);
                         return publicUrl;
                     }
                     catch (error) {
                         console.error('Erreur lors de l\'upload de l\'image :', error.message);
-                        throw new Error('Impossible d\'uploader l\'image.');
+                        throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
                     }
                 }));
                 data.Photo = uploadedImages.map(url => ({ url }));
@@ -182,13 +202,23 @@ let ProductsService = ProductsService_1 = class ProductsService {
             if (galleryFiles && galleryFiles.length > 0) {
                 const uploadedGalleryImages = await Promise.all(galleryFiles.map(async (file) => {
                     try {
+                        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                        for (const file of galleryFiles) {
+                            if (!allowedMimeTypes.includes(file.mimetype)) {
+                                if (file.path) {
+                                    (0, fs_1.unlinkSync)(file.path);
+                                }
+                                throw new Error(`Format d'image non supporté pour le fichier ${file.originalname}. ` +
+                                    `Seuls les formats JPEG, JPG et PNG sont acceptés.`);
+                            }
+                        }
                         const publicUrl = await this.gcsService.uploadImage(file.path);
                         (0, fs_1.unlinkSync)(file.path);
                         return publicUrl;
                     }
                     catch (error) {
                         console.error('Erreur lors de l\'upload de l\'image :', error.message);
-                        throw new Error('Impossible d\'uploader l\'image.');
+                        throw new Error('Impossible d\'uploader l\'image. Seuls les formats JPEG, JPG et PNG sont acceptés');
                     }
                 }));
                 data.Gallery = uploadedGalleryImages.map(url => ({ url }));

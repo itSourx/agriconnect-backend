@@ -57,6 +57,7 @@ export declare class OrdersController {
                 price: number;
                 quantity: number;
                 revenue: number;
+                lastSoldDate: string;
             }>;
             farmerId: string;
         }[];
@@ -154,6 +155,57 @@ export declare class OrdersController {
         };
         message?: undefined;
     }>;
+    getFarmerDetailedStats(farmerId: string, dateRange: {
+        startDate?: string;
+        endDate?: string;
+    }): Promise<{
+        success: boolean;
+        message: string;
+        farmerId: string;
+        period: {
+            start: string;
+            end: string;
+        };
+        stats: null;
+    } | {
+        success: boolean;
+        farmerId: string;
+        period: {
+            start: string;
+            end: string;
+        };
+        stats: {
+            farmerName: string;
+            farmerEmail: string;
+            totalSales: number;
+            totalProductsSold: number;
+            totalRevenue: number;
+            averageSaleValue: number;
+            bestSellingProduct: string;
+            bestSellingProductName: string;
+            products: Record<string, {
+                productName: string;
+                quantitySold: number;
+                revenue: number;
+                lastSaleDate: string;
+                buyers: Record<string, {
+                    buyerName: string;
+                    quantity: number;
+                }>;
+            }>;
+            buyers: Record<string, {
+                buyerName: string;
+                quantity: number;
+                amount: number;
+            }>;
+            salesTimeline: {
+                date: string;
+                amount: number;
+                productCount: number;
+            }[];
+        };
+        message?: undefined;
+    }>;
     findOne(id: string): Promise<any>;
     create(createOrderDto: CreateOrderDto, req: any): Promise<any>;
     update(id: string, data: any, req: any): Promise<any>;
@@ -163,7 +215,7 @@ export declare class OrdersController {
     getOrdersByFarmer(farmerId: string, req: any): Promise<{
         data: any;
     }>;
-    getOrderPayments(orderId: string): Promise<any>;
+    getOrderPayments(orderId: string): Promise<any[]>;
     generateAndStoreInvoice(orderId: string): Promise<{
         message: string;
         data: {

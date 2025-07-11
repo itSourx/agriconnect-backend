@@ -68,6 +68,10 @@ export class OrdersController {
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
 
+    // Troncature des heures
+    startDate?.setHours(0, 0, 0, 0);
+    endDate?.setHours(23, 59, 59, 999);
+
     // 2. Validation des dates si fournies
     if (startDate && isNaN(startDate.getTime())) {
       throw new HttpException('Format de date de début invalide (utilisez YYYY-MM-DD)', HttpStatus.BAD_REQUEST);
@@ -144,6 +148,10 @@ async getFarmerStatistics(
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
 
+    // Troncature des heures
+    startDate?.setHours(0, 0, 0, 0);
+    endDate?.setHours(23, 59, 59, 999);
+
     if (startDate && isNaN(startDate.getTime())) {
       throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
     }
@@ -188,6 +196,10 @@ async getBuyerStatistics(
     // Validation des dates (identique aux autres endpoints)
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+
+    // Troncature des heures
+    startDate?.setHours(0, 0, 0, 0);
+    endDate?.setHours(23, 59, 59, 999);
 
     if (startDate && isNaN(startDate.getTime())) {
       throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
@@ -236,6 +248,10 @@ async getBuyerDetailedStats(
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
 
+    // Troncature des heures
+    startDate?.setHours(0, 0, 0, 0);
+    endDate?.setHours(23, 59, 59, 999);
+
     if (startDate && isNaN(startDate.getTime())) {
       throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
     }
@@ -247,7 +263,7 @@ async getBuyerDetailedStats(
     const allOrders = await this.ordersService.findAll();
     const filteredOrders = allOrders.filter(order => {
       const isBuyerMatch = order.fields.buyerId[0] === buyerId; // Filtre par acheteur
-      const orderDate = new Date(order.createdAt || order.fields?.date);
+      const orderDate = new Date(order.createdAt || order.fields?.createdAt);
       return (
         isBuyerMatch &&
         (!startDate || orderDate >= startDate) &&
@@ -287,6 +303,85 @@ async getBuyerDetailedStats(
     );
   }
 }
+
+@Get('stats/farmers/:farmerId')
+async getFarmerDetailedStats(
+  @Param('farmerId') farmerId: string,
+  @Query() dateRange: { startDate?: string; endDate?: string }
+) {
+  try {
+    const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+    const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+    
+    // Troncature des heures
+    startDate?.setHours(0, 0, 0, 0);
+    endDate?.setHours(23, 59, 59, 999);
+
+
+    if (startDate && isNaN(startDate.getTime())) {
+      throw new HttpException('Format de date de début invalide', HttpStatus.BAD_REQUEST);
+    }
+    if (endDate && isNaN(endDate.getTime())) {
+      throw new HttpException('Format de date de fin invalide', HttpStatus.BAD_REQUEST);
+    }
+
+    const allOrders = await this.ordersService.findAll();
+
+    // ✅ Correction ici
+    const filteredOrders = (
+      await Promise.all(
+        allOrders.map(async (order) => {
+          try {
+            const payments = await this.ordersService.getOrderPayments(order.id);
+            const isFarmerMatch = payments.some(p => p.farmerId === farmerId);
+            const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+
+            const isWithinRange =
+              (!startDate || orderDate >= startDate) &&
+              (!endDate || orderDate <= endDate);
+
+            return (isFarmerMatch && isWithinRange) ? order : null;
+          } catch (error) {
+            console.error(`Erreur filtre commande ${order.id}:`, error);
+            return null;
+          }
+        })
+      )
+    ).filter(order => order !== null);
+
+    if (filteredOrders.length === 0) {
+      return {
+        success: true,
+        message: 'Aucune vente trouvée pour cet agriculteur sur la période sélectionnée',
+        farmerId,
+        period: {
+          start: startDate?.toISOString().split('T')[0] || 'Tous',
+          end: endDate?.toISOString().split('T')[0] || 'Tous'
+        },
+        stats: null
+      };
+    }
+
+    const stats = await this.ordersService.calculateSingleFarmerStats(farmerId, filteredOrders);
+
+    return {
+      success: true,
+      farmerId,
+      period: {
+        start: startDate?.toISOString().split('T')[0] || 'Tous',
+        end: endDate?.toISOString().split('T')[0] || 'Tous'
+      },
+      stats
+    };
+
+  } catch (error) {
+    throw new HttpException(
+      error.response?.message || 'Erreur de calcul des statistiques agriculteur',
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
 
   @Get(':id')
   async findOne(@Param('id') id: string) {

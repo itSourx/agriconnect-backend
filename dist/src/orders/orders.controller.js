@@ -48,6 +48,8 @@ let OrdersController = class OrdersController {
         try {
             const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
             const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            endDate?.setHours(23, 59, 59, 999);
             if (startDate && isNaN(startDate.getTime())) {
                 throw new common_1.HttpException('Format de date de début invalide (utilisez YYYY-MM-DD)', common_1.HttpStatus.BAD_REQUEST);
             }
@@ -92,6 +94,8 @@ let OrdersController = class OrdersController {
         try {
             const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
             const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            endDate?.setHours(23, 59, 59, 999);
             if (startDate && isNaN(startDate.getTime())) {
                 throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
             }
@@ -124,6 +128,8 @@ let OrdersController = class OrdersController {
         try {
             const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
             const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            endDate?.setHours(23, 59, 59, 999);
             if (startDate && isNaN(startDate.getTime())) {
                 throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
             }
@@ -154,6 +160,8 @@ let OrdersController = class OrdersController {
         try {
             const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
             const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            endDate?.setHours(23, 59, 59, 999);
             if (startDate && isNaN(startDate.getTime())) {
                 throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
             }
@@ -163,7 +171,7 @@ let OrdersController = class OrdersController {
             const allOrders = await this.ordersService.findAll();
             const filteredOrders = allOrders.filter(order => {
                 const isBuyerMatch = order.fields.buyerId[0] === buyerId;
-                const orderDate = new Date(order.createdAt || order.fields?.date);
+                const orderDate = new Date(order.createdAt || order.fields?.createdAt);
                 return (isBuyerMatch &&
                     (!startDate || orderDate >= startDate) &&
                     (!endDate || orderDate <= endDate));
@@ -192,6 +200,60 @@ let OrdersController = class OrdersController {
         }
         catch (error) {
             throw new common_1.HttpException(error.response?.message || 'Erreur de calcul des statistiques acheteur', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getFarmerDetailedStats(farmerId, dateRange) {
+        try {
+            const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
+            const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
+            startDate?.setHours(0, 0, 0, 0);
+            endDate?.setHours(23, 59, 59, 999);
+            if (startDate && isNaN(startDate.getTime())) {
+                throw new common_1.HttpException('Format de date de début invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            if (endDate && isNaN(endDate.getTime())) {
+                throw new common_1.HttpException('Format de date de fin invalide', common_1.HttpStatus.BAD_REQUEST);
+            }
+            const allOrders = await this.ordersService.findAll();
+            const filteredOrders = (await Promise.all(allOrders.map(async (order) => {
+                try {
+                    const payments = await this.ordersService.getOrderPayments(order.id);
+                    const isFarmerMatch = payments.some(p => p.farmerId === farmerId);
+                    const orderDate = new Date(order.createdAt || order.fields?.createdAt);
+                    const isWithinRange = (!startDate || orderDate >= startDate) &&
+                        (!endDate || orderDate <= endDate);
+                    return (isFarmerMatch && isWithinRange) ? order : null;
+                }
+                catch (error) {
+                    console.error(`Erreur filtre commande ${order.id}:`, error);
+                    return null;
+                }
+            }))).filter(order => order !== null);
+            if (filteredOrders.length === 0) {
+                return {
+                    success: true,
+                    message: 'Aucune vente trouvée pour cet agriculteur sur la période sélectionnée',
+                    farmerId,
+                    period: {
+                        start: startDate?.toISOString().split('T')[0] || 'Tous',
+                        end: endDate?.toISOString().split('T')[0] || 'Tous'
+                    },
+                    stats: null
+                };
+            }
+            const stats = await this.ordersService.calculateSingleFarmerStats(farmerId, filteredOrders);
+            return {
+                success: true,
+                farmerId,
+                period: {
+                    start: startDate?.toISOString().split('T')[0] || 'Tous',
+                    end: endDate?.toISOString().split('T')[0] || 'Tous'
+                },
+                stats
+            };
+        }
+        catch (error) {
+            throw new common_1.HttpException(error.response?.message || 'Erreur de calcul des statistiques agriculteur', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
     async findOne(id) {
@@ -227,7 +289,8 @@ let OrdersController = class OrdersController {
             const userId = req.user.id;
             const existingOrder = await this.ordersService.findOne(orderId);
             const farmerId = existingOrder.fields.farmerId[0];
-            if (farmerId !== userId || req.user.profile !== 'ADMIN') {
+            const allowedProfiles = ['ADMIN', 'SUPERADMIN'];
+            if (!allowedProfiles.includes(req.user.profile)) {
                 throw new Error('Vous n\'êtes pas autorisé(e) à modifier le statut de cette commande.');
             }
             return this.ordersService.updateStatus(orderId, status);
@@ -489,6 +552,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], OrdersController.prototype, "getBuyerDetailedStats", null);
+__decorate([
+    (0, common_1.Get)('stats/farmers/:farmerId'),
+    __param(0, (0, common_1.Param)('farmerId')),
+    __param(1, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], OrdersController.prototype, "getFarmerDetailedStats", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

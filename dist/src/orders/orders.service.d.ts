@@ -10,7 +10,7 @@ export declare class OrdersService {
     constructor(productsService: ProductsService, usersService: UsersService);
     private getHeaders;
     private getUrl;
-    batchGetOrderPayments(orderIds: string[]): Promise<any[]>;
+    batchGetOrderPayments(orderIds: string[]): Promise<(any[] | null)[]>;
     findAll(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     getOrderById(orderId: string): Promise<any>;
@@ -21,7 +21,8 @@ export declare class OrdersService {
     updateStatus(id: string, status: string): Promise<any>;
     calculateFarmerPayments(products: string[], quantities: number[]): Promise<any>;
     getOrdersByFarmer(farmerId: string): Promise<any>;
-    getOrderPayments(orderId: string): Promise<any>;
+    private parseFarmerPayments;
+    getOrderPayments(orderId: string): Promise<any[]>;
     private loadPdfFonts;
     private loadImageAsBase64;
     generateInvoice(orderId: string): Promise<Buffer>;
@@ -59,6 +60,7 @@ export declare class OrdersService {
                 price: number;
                 quantity: number;
                 revenue: number;
+                lastSoldDate: string;
             }>;
             farmerId: string;
         }[];
@@ -118,6 +120,36 @@ export declare class OrdersService {
             amount: number;
         }>;
         orderTimeline: Array<{
+            date: string;
+            amount: number;
+            productCount: number;
+        }>;
+    }>;
+    calculateSingleFarmerStats(farmerId: string, orders: any[]): Promise<{
+        farmerName: string;
+        farmerEmail: string;
+        totalSales: number;
+        totalProductsSold: number;
+        totalRevenue: number;
+        averageSaleValue: number;
+        bestSellingProduct: string;
+        bestSellingProductName: string;
+        products: Record<string, {
+            productName: string;
+            quantitySold: number;
+            revenue: number;
+            lastSaleDate: string;
+            buyers: Record<string, {
+                buyerName: string;
+                quantity: number;
+            }>;
+        }>;
+        buyers: Record<string, {
+            buyerName: string;
+            quantity: number;
+            amount: number;
+        }>;
+        salesTimeline: Array<{
             date: string;
             amount: number;
             productCount: number;

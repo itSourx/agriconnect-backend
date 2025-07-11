@@ -320,6 +320,7 @@ let OrdersService = class OrdersService {
             const mesure = product.fields.mesure;
             const category = product.fields.category;
             const zone = product.fields.location;
+            const Photo = (product.fields.Photo || []).map(p => p.url);
             const farmer = await this.usersService.findOne(farmerId);
             const name = farmer.fields.name || 'Nom inconnu';
             const farmerEmail = farmer.fields.email || 'Email inconnu';
@@ -347,6 +348,7 @@ let OrdersService = class OrdersService {
                 mesure,
                 zone,
                 total: totalAmount,
+                Photo,
             });
         }
         return Object.values(farmerPayments);
@@ -363,10 +365,20 @@ let OrdersService = class OrdersService {
                     continue;
                 let farmerPayments;
                 try {
-                    farmerPayments = JSON.parse(fields.farmerPayments);
+                    if (typeof fields.farmerPayments === 'string') {
+                        const safeJson = fields.farmerPayments.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+                        farmerPayments = JSON.parse(safeJson);
+                    }
+                    else if (Array.isArray(fields.farmerPayments)) {
+                        farmerPayments = fields.farmerPayments;
+                    }
+                    else {
+                        console.warn(`Format inattendu de farmerPayments pour la commande ${orderId}:`, fields.farmerPayments);
+                        continue;
+                    }
                 }
                 catch (error) {
-                    console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}`);
+                    console.error(`Erreur lors du parsing de farmerPayments pour la commande ${orderId}:`, error.message);
                     continue;
                 }
                 const farmerPayment = farmerPayments.find(payment => payment.farmerId === farmerId);
@@ -380,6 +392,8 @@ let OrdersService = class OrdersService {
                         orderNumber: fields.orderNumber,
                         buyerName: fields.buyerName,
                         buyerEmail: fields.buyerEmail,
+                        buyerPhone: fields.buyerPhone,
+                        buyerPhoto: fields.buyerPhoto,
                         totalAmount: farmerPayment.totalAmount,
                         status: fields.status,
                         createdDate: formattedDate,
@@ -396,28 +410,58 @@ let OrdersService = class OrdersService {
             throw error;
         }
     }
+    parseFarmerPayments(farmerPayments) {
+        try {
+            if (!farmerPayments)
+                return [];
+            if (Array.isArray(farmerPayments))
+                return farmerPayments;
+            if (typeof farmerPayments === 'string') {
+                try {
+                    const parsed = JSON.parse(farmerPayments);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                }
+                catch {
+                    return [];
+                }
+            }
+            if (typeof farmerPayments === 'object')
+                return [farmerPayments];
+            return [];
+        }
+        catch (error) {
+            console.error('Erreur de parsing:', error);
+            return [];
+        }
+    }
     async getOrderPayments(orderId) {
         try {
             const existingOrder = await this.findOne(orderId);
-            if (!existingOrder) {
-                throw new Error('Commande introuvable.');
-            }
+            if (!existingOrder)
+                throw new Error('Commande introuvable');
             const farmerPayments = existingOrder.fields.farmerPayments;
-            if (!farmerPayments) {
-                throw new Error('Aucun détail de paiement trouvé pour cette commande.');
+            if (!farmerPayments)
+                return [];
+            if (Array.isArray(farmerPayments))
+                return farmerPayments;
+            if (typeof farmerPayments === 'string') {
+                try {
+                    const safeJson = farmerPayments.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+                    const parsed = JSON.parse(safeJson);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                }
+                catch (error) {
+                    console.error(`Erreur de parsing JSON pour orderId=${orderId}:`, error.message);
+                    return [];
+                }
             }
-            let parsedPayments;
-            try {
-                parsedPayments = JSON.parse(farmerPayments);
-            }
-            catch (error) {
-                throw new Error('Le format des détails de paiement est incorrect.');
-            }
-            return parsedPayments;
+            if (typeof farmerPayments === 'object')
+                return [farmerPayments];
+            return [];
         }
         catch (error) {
-            console.error('Erreur lors de la récupération des détails de paiement :', error.message);
-            throw error;
+            console.error(`Erreur critique: ${error.message}`);
+            return [];
         }
     }
     loadPdfFonts() {
@@ -786,8 +830,10 @@ let OrdersService = class OrdersService {
                 }
                 const buyerName = order.buyerName.length > 0 ? order.buyerName[0] : '';
                 const buyerEmail = order.buyerEmail.length > 0 ? order.buyerEmail[0] : '';
+                const buyerPhone = (order.buyerPhone || []).length > 0 ? order.buyerPhone[0] : '';
+                const buyerPhoto = (order.buyerPhoto || []).length > 0 ? order.buyerPhoto[0] : '';
                 const totalAmount = typeof order.totalAmount === 'number' ? order.totalAmount : 0;
-                console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}", totalAmount : ${totalAmount}`);
+                console.log(`buyerName extrait : "${buyerName}", buyerEmail extrait : "${buyerEmail}",buyerPhone extrait : "${buyerPhone}", buyerPhoto extrait : "${buyerPhoto}", totalAmount : ${totalAmount}`);
                 if (buyerName && buyerEmail) {
                     if (clientStats.has(buyerEmail)) {
                         const client = clientStats.get(buyerEmail);
@@ -857,6 +903,8 @@ let OrdersService = class OrdersService {
                         clientStats.set(buyerEmail, {
                             buyerName,
                             buyerEmail,
+                            buyerPhone,
+                            buyerPhoto,
                             orderCount: 1,
                             totalSpent: totalAmount,
                             firstOrderDate: order.createdDate,
@@ -929,40 +977,47 @@ let OrdersService = class OrdersService {
         await Promise.all(orders.map(async (order) => {
             try {
                 const payments = await this.getOrderPayments(order.id);
-                const farmerId = order.farmerId || payments[0]?.farmerId;
-                if (!farmerId)
-                    return;
-                if (!farmerStats[farmerId]) {
-                    farmerStats[farmerId] = {
-                        farmerName: payments[0]?.name || 'Inconnu',
-                        farmerEmail: payments[0]?.email || '',
-                        totalOrders: 0,
-                        totalProducts: 0,
-                        totalRevenue: 0,
-                        products: {}
-                    };
-                }
-                farmerStats[farmerId].totalOrders++;
-                payments.forEach(payment => {
-                    payment.products.forEach(product => {
+                const orderDate = new Date(order.createdAt || order.fields?.date || new Date()).toISOString().split('T')[0];
+                for (const payment of payments) {
+                    const farmerId = payment.farmerId;
+                    if (!farmerId)
+                        continue;
+                    if (!farmerStats[farmerId]) {
+                        farmerStats[farmerId] = {
+                            farmerName: payment.name || 'Inconnu',
+                            farmerEmail: payment.email || '',
+                            totalOrders: 0,
+                            totalProducts: 0,
+                            totalRevenue: 0,
+                            products: {}
+                        };
+                    }
+                    farmerStats[farmerId].totalOrders++;
+                    for (const product of payment.products || []) {
                         if (!product.productId)
-                            return;
-                        if (!farmerStats[farmerId].products[product.productId]) {
+                            continue;
+                        const productRef = farmerStats[farmerId].products[product.productId];
+                        if (!productRef) {
                             farmerStats[farmerId].products[product.productId] = {
                                 name: product.lib || 'Inconnu',
                                 category: product.category || 'Inconnue',
-                                price: product.price || 'Inconnue',
+                                price: typeof product.price === 'number' ? product.price : 0,
                                 quantity: 0,
-                                revenue: 0
+                                revenue: 0,
+                                lastSoldDate: orderDate
                             };
                             farmerStats[farmerId].totalProducts++;
                         }
-                        farmerStats[farmerId].products[product.productId].quantity += product.quantity || 0;
-                        farmerStats[farmerId].products[product.productId].revenue += product.total || 0;
-                        farmerStats[farmerId].totalRevenue += product.total || 0;
-                        globalTotalRevenue += product.total || 0;
-                    });
-                });
+                        const productStats = farmerStats[farmerId].products[product.productId];
+                        const quantity = product.quantity || 0;
+                        const revenue = product.total || 0;
+                        productStats.quantity += quantity;
+                        productStats.revenue += revenue;
+                        productStats.lastSoldDate = orderDate;
+                        farmerStats[farmerId].totalRevenue += revenue;
+                        globalTotalRevenue += revenue;
+                    }
+                }
             }
             catch (error) {
                 console.error(`Erreur commande ${order.id}:`, error.message);
@@ -971,8 +1026,9 @@ let OrdersService = class OrdersService {
         const farmersArray = Object.entries(farmerStats).map(([farmerId, stats]) => ({
             farmerId,
             ...stats,
-            percentageOfTotalRevenue: globalTotalRevenue > 0 ?
-                (stats.totalRevenue / globalTotalRevenue) * 100 : 0
+            percentageOfTotalRevenue: globalTotalRevenue > 0
+                ? parseFloat(((stats.totalRevenue / globalTotalRevenue) * 100).toFixed(2))
+                : 0
         }));
         return {
             totalFarmers: Object.keys(farmerStats).length,
@@ -1138,6 +1194,115 @@ let OrdersService = class OrdersService {
         }
         buyerStats.orderTimeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         return buyerStats;
+    }
+    async calculateSingleFarmerStats(farmerId, orders) {
+        const products = await this.productsService.findAll();
+        const farmerStats = {
+            farmerName: 'Agriculteur inconnu',
+            farmerEmail: '',
+            totalSales: 0,
+            totalProductsSold: 0,
+            totalRevenue: 0,
+            averageSaleValue: 0,
+            bestSellingProduct: '',
+            bestSellingProductName: '',
+            products: {},
+            buyers: {},
+            salesTimeline: []
+        };
+        try {
+            for (const order of orders) {
+                const payments = await this.getOrderPayments(order.id);
+                const farmerData = payments.find(p => p.farmerId === farmerId);
+                if (farmerData) {
+                    farmerStats.farmerName = farmerData.name || 'Agriculteur inconnu';
+                    farmerStats.farmerEmail = farmerData.email || '';
+                    break;
+                }
+            }
+        }
+        catch (error) {
+            console.error('Erreur initialisation agriculteur:', error);
+        }
+        await Promise.all(orders.map(async (order) => {
+            try {
+                const payments = await this.getOrderPayments(order.id);
+                const farmerPayment = payments.find(p => p.farmerId === farmerId);
+                if (!farmerPayment)
+                    return;
+                const saleDate = new Date(order.createdAt || order.fields?.createdAt).toISOString().split('T')[0];
+                let saleProductCount = 0;
+                let saleAmount = 0;
+                farmerPayment.products.forEach(product => {
+                    if (!product.productId)
+                        return;
+                    if (!farmerStats.products[product.productId]) {
+                        const productName = products.find(p => p.id === product.productId)?.fields.Name || product.productId;
+                        farmerStats.products[product.productId] = {
+                            productName,
+                            quantitySold: 0,
+                            revenue: 0,
+                            lastSaleDate: saleDate,
+                            buyers: {}
+                        };
+                        farmerStats.totalProductsSold++;
+                    }
+                    const currentProduct = farmerStats.products[product.productId];
+                    currentProduct.quantitySold += product.quantity || 0;
+                    currentProduct.revenue += product.total || 0;
+                    currentProduct.lastSaleDate = saleDate;
+                    if (order.fields.buyerId) {
+                        const buyerName = order.fields.buyerName[0] || `Acheteur ${order.fields.buyerId.slice(0, 6)}`;
+                        currentProduct.buyers[order.fields.buyerId] = {
+                            buyerName,
+                            quantity: (currentProduct.buyers[order.fields.buyerId]?.quantity || 0) + (product.quantity || 0)
+                        };
+                        if (!farmerStats.buyers[order.fields.buyerId]) {
+                            farmerStats.buyers[order.fields.buyerId] = {
+                                buyerName,
+                                quantity: 0,
+                                amount: 0
+                            };
+                        }
+                        farmerStats.buyers[order.fields.buyerId].quantity += product.quantity || 0;
+                        farmerStats.buyers[order.fields.buyerId].amount += product.total || 0;
+                    }
+                    saleProductCount++;
+                    saleAmount += product.total || 0;
+                });
+                farmerStats.salesTimeline.push({
+                    date: saleDate,
+                    amount: saleAmount,
+                    productCount: saleProductCount
+                });
+                farmerStats.totalSales++;
+                farmerStats.totalRevenue += saleAmount;
+            }
+            catch (error) {
+                console.error(`Erreur traitement commande ${order.id}:`, error.message);
+            }
+        }));
+        farmerStats.averageSaleValue = farmerStats.totalSales > 0
+            ? parseFloat((farmerStats.totalRevenue / farmerStats.totalSales).toFixed(2))
+            : 0;
+        if (Object.keys(farmerStats.products).length > 0) {
+            const [productId, productData] = Object.entries(farmerStats.products)
+                .sort((a, b) => b[1].revenue - a[1].revenue)[0];
+            farmerStats.bestSellingProduct = productId;
+            farmerStats.bestSellingProductName = productData.productName;
+        }
+        const groupedTimeline = {};
+        farmerStats.salesTimeline.forEach(entry => {
+            if (!groupedTimeline[entry.date]) {
+                groupedTimeline[entry.date] = { amount: 0, productCount: 0 };
+            }
+            groupedTimeline[entry.date].amount += entry.amount;
+            groupedTimeline[entry.date].productCount += entry.productCount;
+        });
+        farmerStats.salesTimeline = Object.entries(groupedTimeline)
+            .map(([date, data]) => ({ date, ...data }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return farmerStats;
     }
 };
 exports.OrdersService = OrdersService;

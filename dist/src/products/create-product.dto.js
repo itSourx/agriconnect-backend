@@ -73,6 +73,14 @@ __decorate([
 ], CreateProductDto.prototype, "email", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
+        example: 'Porto',
+        description: 'L\'adresse où le produit peut être retrouvé',
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateProductDto.prototype, "location", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
         description: 'Array of photo URLs for the product',
         type: [String],
         example: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'],

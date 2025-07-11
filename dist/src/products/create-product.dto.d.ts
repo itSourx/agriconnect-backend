@@ -6,5 +6,6 @@ export declare class CreateProductDto {
     category: string;
     mesure: string;
     email: string;
+    location: string;
     Photo: string[];
 }
