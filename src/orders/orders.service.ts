@@ -769,14 +769,26 @@ private parseFarmerPayments(farmerPayments: any): any[] {
       if (Array.isArray(farmerPayments)) return farmerPayments;
 
       // Cas 3 : Chaîne JSON (ancien format)
-      if (typeof farmerPayments === 'string') {
+      /*if (typeof farmerPayments === 'string') {
         try {
           const parsed = JSON.parse(farmerPayments);
           return Array.isArray(parsed) ? parsed : [parsed];
         } catch {
           return [];
         }
+      }*/
+      if (typeof farmerPayments === 'string') {
+      try {
+        // 🔧 Patch temporaire pour corriger les échappements invalides
+        const safeJson = farmerPayments.replace(/\\(?!["\\/bfnrtu])/g, '\\\\');
+
+        const parsed = JSON.parse(safeJson);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch (error) {
+        console.error(`Erreur de parsing JSON pour orderId=${orderId}:`, error.message);
+        return [];
       }
+    }
 
       // Cas 4 : Objet unique
       if (typeof farmerPayments === 'object') return [farmerPayments];
