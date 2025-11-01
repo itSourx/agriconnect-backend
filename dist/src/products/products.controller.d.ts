@@ -5,6 +5,7 @@ export declare class ProductsController {
     private readonly logger;
     constructor(productsService: ProductsService);
     findAll(): Promise<any[]>;
+    findAllBags(): Promise<any[]>;
     findByFarmer(id: string): Promise<any[]>;
     findAllByCategory(category: string): Promise<any[]>;
     delete(id: string): Promise<any>;

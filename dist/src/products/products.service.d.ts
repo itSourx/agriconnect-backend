@@ -11,6 +11,7 @@ export declare class ProductsService {
     private getHeaders;
     private getUrl;
     findAll(): Promise<any[]>;
+    findAllBags(): Promise<any[]>;
     findOne(id: string): Promise<any>;
     search(query: string): Promise<any[]>;
     create(data: any, files?: Express.Multer.File[]): Promise<any>;

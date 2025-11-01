@@ -977,7 +977,7 @@ let OrdersService = class OrdersService {
         await Promise.all(orders.map(async (order) => {
             try {
                 const payments = await this.getOrderPayments(order.id);
-                const orderDate = new Date(order.createdAt || order.fields?.date || new Date()).toISOString().split('T')[0];
+                const orderDate = new Date(order.createdAt || order.fields?.createdAt || new Date()).toISOString().split('T')[0];
                 for (const payment of payments) {
                     const farmerId = payment.farmerId;
                     if (!farmerId)

@@ -24,6 +24,11 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  @Get('bags')
+  async findAllBags() {
+    return this.productsService.findAllBags();
+  }
+
     // Endpoint pour récupérer tous les produits d'un agriculteur
     @Get('findByFarmer/:id')
     @UseGuards(AuthGuard)

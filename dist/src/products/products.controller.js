@@ -30,6 +30,9 @@ let ProductsController = ProductsController_1 = class ProductsController {
     async findAll() {
         return this.productsService.findAll();
     }
+    async findAllBags() {
+        return this.productsService.findAllBags();
+    }
     async findByFarmer(id) {
         return this.productsService.findByFarmer(id);
     }
@@ -88,6 +91,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ProductsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('bags'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ProductsController.prototype, "findAllBags", null);
 __decorate([
     (0, common_1.Get)('findByFarmer/:id'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),

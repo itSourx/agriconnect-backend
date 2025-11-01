@@ -83,6 +83,49 @@ async findAll(): Promise<any[]> {
     throw error;
   }
 }
+
+async findAllBags(): Promise<any[]> {
+  try {
+    console.log('Récupération de tous les produits...');
+
+    let filteredRecords: any[] = [];
+    let offset: string | undefined = undefined;
+
+    do {
+      // Récupération d'une page d'enregistrements
+      const response = await axios.get(this.getUrl(), {
+        headers: this.getHeaders(),
+        params: {
+          pageSize: 100, // Limite maximale par requête
+          offset: offset,
+        },
+      });
+
+      const records = response.data.records || [];
+
+      // Filtrer les enregistrements selon la catégorie
+      const filteredPage = records.filter(
+        (record: any) => {
+          const category = record.fields?.Category || record.fields?.category;
+          return category === 'Bag' || category === 'Tshirt';
+        }
+      );
+
+      // Ajouter seulement les produits filtrés
+      filteredRecords = filteredRecords.concat(filteredPage);
+
+      // Mettre à jour l'offset pour la page suivante
+      offset = response.data.offset;
+    } while (offset);
+
+    console.log(`Produits filtrés récupérés : ${filteredRecords.length}`);
+    return filteredRecords;
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération des enregistrements :', error.message);
+    throw error;
+  }
+}
+
   
   async findOne(id: string): Promise<any> {
     const response = await axios.get(`${this.getUrl()}/${id}`, 

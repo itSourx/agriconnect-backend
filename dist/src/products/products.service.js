@@ -60,6 +60,35 @@ let ProductsService = ProductsService_1 = class ProductsService {
             throw error;
         }
     }
+    async findAllBags() {
+        try {
+            console.log('Récupération de tous les produits...');
+            let filteredRecords = [];
+            let offset = undefined;
+            do {
+                const response = await axios_1.default.get(this.getUrl(), {
+                    headers: this.getHeaders(),
+                    params: {
+                        pageSize: 100,
+                        offset: offset,
+                    },
+                });
+                const records = response.data.records || [];
+                const filteredPage = records.filter((record) => {
+                    const category = record.fields?.Category || record.fields?.category;
+                    return category === 'Bag' || category === 'Tshirt';
+                });
+                filteredRecords = filteredRecords.concat(filteredPage);
+                offset = response.data.offset;
+            } while (offset);
+            console.log(`Produits filtrés récupérés : ${filteredRecords.length}`);
+            return filteredRecords;
+        }
+        catch (error) {
+            console.error('Erreur lors de la récupération des enregistrements :', error.message);
+            throw error;
+        }
+    }
     async findOne(id) {
         const response = await axios_1.default.get(`${this.getUrl()}/${id}`, { headers: this.getHeaders() });
         if (!response) {
