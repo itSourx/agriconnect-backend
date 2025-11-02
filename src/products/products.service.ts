@@ -107,7 +107,7 @@ async findAllBags(): Promise<any[]> {
       const filteredPage = records.filter(
         (record: any) => {
           const category = record.fields?.Category || record.fields?.category;
-          return category === 'Bag' || category === 'Tshirt';
+          return category === 'Cotton' || category === 'Cotton Recycled' || category === 'Cotton Organic' || category === 'Canvas' || category === 'Canvas Recycled' || category === 'Canvas Duffle' || category === 'Wibalin' || category === 'Jutte';
         }
       );
 

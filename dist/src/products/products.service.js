@@ -76,7 +76,7 @@ let ProductsService = ProductsService_1 = class ProductsService {
                 const records = response.data.records || [];
                 const filteredPage = records.filter((record) => {
                     const category = record.fields?.Category || record.fields?.category;
-                    return category === 'Bag' || category === 'Tshirt';
+                    return category === 'Cotton' || category === 'Cotton Recycled' || category === 'Cotton Organic' || category === 'Canvas' || category === 'Canvas Recycled' || category === 'Canvas Duffle' || category === 'Wibalin' || category === 'Jutte';
                 });
                 filteredRecords = filteredRecords.concat(filteredPage);
                 offset = response.data.offset;
