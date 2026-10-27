@@ -32,7 +32,7 @@ export class AuthGuard implements CanActivate {
     try {
       console.log('Tentative de validation du token...');
       const payload = await this.jwtService.verifyAsync(token);
-      console.log('Payload décodé:', payload);
+      // Never log decoded JWT claims.
 
       // Ajoutez le payload (données décodées) à la requête pour utilisation ultérieure
       request['user'] = payload;
@@ -47,8 +47,6 @@ export class AuthGuard implements CanActivate {
 
   private extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'bearer' ? token : undefined;
-    console.log('Headers:', request.headers);
-    console.log('Token extrait:', token);
+    return type?.toLowerCase() === 'bearer' && token ? token : undefined;
   }
 }
