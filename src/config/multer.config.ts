@@ -1,12 +1,13 @@
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { randomUUID } from 'crypto';
 
 export const multerOptions = {
   storage: diskStorage({
     destination: './uploads',
     filename: (req, file, callback) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const ext = extname(file.originalname);
+      const uniqueSuffix = randomUUID();
+      const ext = extname(file.originalname).toLowerCase();
       callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
     },
   }),
@@ -14,7 +15,9 @@ export const multerOptions = {
     fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter: (req, file, callback) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+    if (!allowedTypes.includes(file.mimetype) || !allowedExtensions.includes(extname(file.originalname).toLowerCase())) {
       return callback(new Error('Seules les images sont autorisées'), false);
     }
     callback(null, true);
