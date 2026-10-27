@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt'; // Importez bcrypt ici
 import { ProfilesService } from '../profiles/profiles.service'; // Importez ProfilesService
 import { BlacklistService } from '../auth/blacklist.service';
-import { randomBytes } from 'crypto'; // Pour générer un mot de passe aléatoire
+import { randomBytes, randomInt } from 'crypto'; // Pour générer un mot de passe aléatoire
 import * as Airtable from 'airtable'; // Importez Airtable correctement
 import * as nodemailer from 'nodemailer';
 import { GCSService } from '../google_cloud/gcs.service';
@@ -454,7 +454,7 @@ export class UsersService {
     const possibleCharacters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let password = '';
     for (let i = 0; i < length; i++) {
-      password += possibleCharacters.charAt(Math.floor(Math.random() * possibleCharacters.length));
+      password += possibleCharacters.charAt(randomInt(possibleCharacters.length));
     }
     return password;
   }
@@ -506,7 +506,7 @@ export class UsersService {
         pass: process.env.EMAIL_PASSWORD, // Votre mot de passe email
       },
       tls: {
-        rejectUnauthorized: false, // Ignorer les certificats non valides (si nécessaire)
+        rejectUnauthorized: true, // Vérifier le certificat du serveur SMTP
       },
     });
   
