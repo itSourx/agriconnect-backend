@@ -422,14 +422,20 @@ async getFarmerDetailedStats(
   }
 
   @Put('updateOrder/:id')
-  //@UseGuards(AuthGuard)
-  async updatePayment(@Param('id') id: string, @Body() data: any) {
-    console.log('Données reçues dans le contrôleur :', data);
+  @UseGuards(AuthGuard)
+  async updatePayment(@Param('id') id: string, @Body() data: any, @Request() req) {
+    if (!['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+    }
     return this.ordersService.updateFarmerPayment(id, data);
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
+  @UseGuards(AuthGuard)
+  async delete(@Param('id') id: string, @Request() req) {
+    if (!['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+    }
     return this.ordersService.delete(id);
   }
 
@@ -479,7 +485,7 @@ async getFarmerDetailedStats(
   }
 
   @Get('details/:id')
-  //@UseGuards(AuthGuard)
+  @UseGuards(AuthGuard)
   async getOrderPayments(@Param('id') orderId: string) {
     try {
       // Appeler le service pour récupérer les détails des paiements
