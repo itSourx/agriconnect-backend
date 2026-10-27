@@ -8,7 +8,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { multerOptions } from '../config/multer.config';
 import { Express } from 'express'; // Ajoutez cet import
 import { FileInterceptor } from '@nestjs/platform-express'; // Import correct
-import { diskStorage } from 'multer';
+
 
 
 @ApiTags('products')
@@ -64,14 +64,7 @@ export class ProductsController {
   @Post('add')
   @UseGuards(AuthGuard)
   @UseInterceptors(
-    FilesInterceptor('Photo', 5, {
-      storage: diskStorage({
-        destination: './uploads', // Stocker les fichiers temporairement
-        filename: (req, file, callback) => {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-    })
+    FilesInterceptor('Photo', 5, multerOptions)
   )
   async create(
     @UploadedFiles() files: Express.Multer.File[],
@@ -102,20 +95,7 @@ export class ProductsController {
     @Put(':id') 
     @UseGuards(AuthGuard)
     @UseInterceptors(
-      FileFieldsInterceptor(
-        [
-          { name: 'Photo', maxCount: 5 }, // Champ pour les photos principales
-          { name: 'Gallery', maxCount: 10 }, // Champ pour les images de la galerie
-        ],
-        {
-          storage: diskStorage({
-            destination: './uploads', // Dossier temporaire pour les fichiers uploadés
-            filename: (req, file, callback) => {
-              callback(null, `${Date.now()}-${file.originalname}`);
-            },
-          }),
-        }
-      )
+      FileFieldsInterceptor([{ name: 'Photo', maxCount: 5 }, { name: 'Gallery', maxCount: 10 }], multerOptions)
     )
     async update(
       @Param('id') id: string, // ID du produit à mettre à jour
