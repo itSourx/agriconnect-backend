@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, UseInterceptors, UploadedFiles, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe, Request, UseInterceptors, UploadedFiles, UploadedFile, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './create-user.dto';
 import { ChangePasswordDto } from './change-password.dto';
@@ -13,14 +13,32 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  private requireAdmin(req: any) {
+    if (!['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      throw new ForbiddenException('Accès réservé aux administrateurs.');
+    }
+  }
+
+  private sanitizeUser(user: any): any {
+    if (!user) return user;
+    if (Array.isArray(user)) return user.map(item => this.sanitizeUser(item));
+    const fields = user.fields || {};
+    const { password, resetPassword, ...safeFields } = fields;
+    return { ...user, fields: safeFields };
+  }
+
   @Get()
-  async findAll() {
-    return this.usersService.findAll();
+  @UseGuards(AuthGuard)
+  async findAll(@Request() req) {
+    this.requireAdmin(req);
+    return this.sanitizeUser(await this.usersService.findAll());
   }
 
 
   @Get('superadmin')
-  async getSuperAdmin() {
+  @UseGuards(AuthGuard)
+  async getSuperAdmin(@Request() req) {
+    this.requireAdmin(req);
     try {
       const superAdmin = await this.usersService.getSuperAdmin();
       return {compteAdmin:superAdmin.fields.compteOwo};
@@ -32,20 +50,26 @@ export class UsersController {
 
     // Endpoint pour récupérer tous les produits par profile
     @Get('by-profile/:profile')
-    async findAllByProfile(@Param('profile') profile: string): Promise<any[]> {
-      return this.usersService.findAllByProfile(profile);
+    @UseGuards(AuthGuard)
+    async findAllByProfile(@Param('profile') profile: string, @Request() req): Promise<any[]> {
+      this.requireAdmin(req);
+      return this.sanitizeUser(await this.usersService.findAllByProfile(profile));
     }
   
 
   // Nouvelle route pour rechercher un utilisateur  par email
   @Get('getUserByEmail/:email')
-  async findOneByEmail(@Param('email') email: string): Promise<any> {
-    return this.usersService.findOneByEmail(email);
+  @UseGuards(AuthGuard)
+  async findOneByEmail(@Param('email') email: string, @Request() req): Promise<any> {
+    this.requireAdmin(req);
+    return this.sanitizeUser(await this.usersService.findOneByEmail(email));
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  @UseGuards(AuthGuard)
+  async findOne(@Param('id') id: string, @Request() req) {
+    if (req.user?.id !== id) this.requireAdmin(req);
+    return this.sanitizeUser(await this.usersService.findOne(id));
   }
 
   @Post('add/')
@@ -63,8 +87,9 @@ export class UsersController {
   )
 async create(
   @UploadedFiles() files: Express.Multer.File[],
-  @Body() createUserDto: CreateUserDto) {
-  return this.usersService.create(createUserDto, files);  
+  @Body() createUserDto: CreateUserDto, @Request() req) {
+  this.requireAdmin(req);
+  return this.sanitizeUser(await this.usersService.create(createUserDto, files));  
 }
 
   // Nouvelle méthode : Inscription d'un utilisateur avec email et mot de passe
@@ -100,13 +125,19 @@ async create(
   )
   async update(@Param('id') id: string,
   @UploadedFiles() files: Express.Multer.File[], 
-  @Body() data: any) {
-    return this.usersService.update(id, data, files);
+  @Body() data: any, @Request() req) {
+    if (req.user?.id !== id) this.requireAdmin(req);
+    if (!['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      const { profile, profileType, password, resetPassword, compteOwo, ...safeData } = data;
+      return this.sanitizeUser(await this.usersService.update(id, safeData, files));
+    }
+    return this.sanitizeUser(await this.usersService.update(id, data, files));
   }
 
   @Delete(':id')
   @UseGuards(AuthGuard) // Protection avec JWT
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Request() req) {
+    this.requireAdmin(req);
     return this.usersService.delete(id);
   }
 
@@ -118,6 +149,7 @@ async create(
     @Body() changePasswordDto: ChangePasswordDto,
     @Request() req, // Accéder à la requête via @Request()
   ): Promise<any> {
+    if (req.user?.id !== id) throw new ForbiddenException('Accès refusé.');
     const { oldPassword, newPassword } = changePasswordDto;
 
     // Extraire le token de l'en-tête Authorization
@@ -155,7 +187,8 @@ async validateResetPassword(
   @Post('unlock')
   //@UseGuards(AdminGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
   @UseGuards(AuthGuard)
-  async unlockUser(@Body() body: { email: string }) {
+  async unlockUser(@Body() body: { email: string }, @Request() req) {
+    this.requireAdmin(req);
     const { email } = body;
 
     if (!email) {
@@ -168,7 +201,8 @@ async validateResetPassword(
   @Post('lock')
   //@UseGuards(AuthGuard) // Assurez-vous que seul un administrateur peut accéder à cette route
   @UseGuards(AuthGuard)
-  async blockUser(@Body() body: { email: string }) {
+  async blockUser(@Body() body: { email: string }, @Request() req) {
+    this.requireAdmin(req);
     const { email } = body;
 
     if (!email) {
