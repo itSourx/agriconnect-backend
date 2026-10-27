@@ -414,11 +414,15 @@ async getFarmerDetailedStats(
   @UseGuards(AuthGuard)
   async update(@Param('id') id: string, @Body() data: any, @Request() req) {
 
-    if (req.user.profile !=='ACHETEUR') {
-      throw new Error('Vous n\'êtes pas autorisé(e) à modifier la commande.');
+    if (req.user?.profile !== 'ACHETEUR') {
+      throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
     }
-
-    return this.ordersService.update(id, data);
+    const existingOrder = await this.ordersService.findOne(id);
+    if (existingOrder?.fields?.buyerId?.[0] !== req.user?.id) {
+      throw new HttpException('Cette commande ne vous appartient pas.', HttpStatus.FORBIDDEN);
+    }
+    const { buyerId, farmerId, status, payments, totalAmount, ...allowedData } = data;
+    return this.ordersService.update(id, allowedData);
   }
 
   @Put('updateOrder/:id')
