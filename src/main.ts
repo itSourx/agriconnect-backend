@@ -26,8 +26,15 @@ const logger = winston.createLogger({
 async function bootstrap() {
   //const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn', 'debug'] });
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+  if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+    throw new Error('CORS_ALLOWED_ORIGINS must be configured in production');
+  }
   app.enableCors({
-    origin: '*', // Autorise toutes les origines (à ajuster en production)
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'PATCH'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
