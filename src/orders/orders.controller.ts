@@ -568,6 +568,7 @@ async getFarmerDetailedStats(
   }
 
 @Get('preview-invoice/:id')
+@UseGuards(AuthGuard)
 async previewInvoice(@Param('id') orderId: string, @Res() res: Response, @Request() req) {
   await this.requireOrderAccess(orderId, req);
   try {
@@ -622,7 +623,10 @@ async sendInvoice(@Param('id') orderId: string, @Request() req) {
   
   @Get('getFarmerClients/:farmerId')
   @UseGuards(AuthGuard)
-  async getFarmerClients(@Param('farmerId') farmerId: string) {
+  async getFarmerClients(@Param('farmerId') farmerId: string, @Request() req) {
+    if (req.user?.id !== farmerId && !['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+    }
     try {
       // Appeler le service pour récupérer les clients de l'agriculteur
       const clients = await this.ordersService.getFarmerClients(farmerId);
