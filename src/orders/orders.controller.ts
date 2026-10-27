@@ -517,7 +517,8 @@ async getFarmerDetailedStats(
   }
   @Post('invoice/:id')
   @UseGuards(AuthGuard)
-  async generateAndStoreInvoice(@Param('id') orderId: string) {
+  async generateAndStoreInvoice(@Param('id') orderId: string, @Request() req) {
+    await this.requireOrderAccess(orderId, req);
     try {
       // Générer la facture PDF en base64
       const pdfBuffer = await this.ordersService.generateInvoice(orderId);
@@ -567,7 +568,8 @@ async getFarmerDetailedStats(
   }
 
 @Get('preview-invoice/:id')
-async previewInvoice(@Param('id') orderId: string, @Res() res: Response) {
+async previewInvoice(@Param('id') orderId: string, @Res() res: Response, @Request() req) {
+  await this.requireOrderAccess(orderId, req);
   try {
     // Générer la facture PDF
     const pdfBuffer = await this.ordersService.generateInvoice(orderId);
@@ -583,7 +585,8 @@ async previewInvoice(@Param('id') orderId: string, @Res() res: Response) {
 
 @Post('send-invoice/:id')
 @UseGuards(AuthGuard)
-async sendInvoice(@Param('id') orderId: string) {
+async sendInvoice(@Param('id') orderId: string, @Request() req) {
+  await this.requireOrderAccess(orderId, req);
   try {
     // Récupérer la commande existante depuis Airtable
     const existingOrder = await this.ordersService.findOne(orderId);
