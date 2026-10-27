@@ -4,7 +4,7 @@ import { CreateUserDto } from './create-user.dto';
 import { ChangePasswordDto } from './change-password.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express'; // Import correct
-import { diskStorage } from 'multer';
+import { multerOptions } from '../config/multer.config';
 import { FilesInterceptor } from '@nestjs/platform-express';
 
 
@@ -76,14 +76,7 @@ export class UsersController {
   @UseGuards(AuthGuard)
   @UsePipes(new ValidationPipe())
   @UseInterceptors(
-    FilesInterceptor('Photo', 5, {
-      storage: diskStorage({
-        destination: './uploads', // Stocker les fichiers temporairement
-        filename: (req, file, callback) => {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-    })
+    FilesInterceptor('Photo', 5, multerOptions)
   )
 async create(
   @UploadedFiles() files: Express.Multer.File[],
@@ -96,14 +89,7 @@ async create(
   @Post('register')
     @UsePipes(new ValidationPipe())
       @UseInterceptors(
-        FilesInterceptor('Photo', 5, {
-          storage: diskStorage({
-            destination: './uploads', // Stocker les fichiers temporairement
-            filename: (req, file, callback) => {
-              callback(null, `${Date.now()}-${file.originalname}`);
-            },
-          }),
-        })
+        FilesInterceptor('Photo', 5, multerOptions)
       )
     async register(
       @UploadedFiles() files: Express.Multer.File[],
@@ -117,14 +103,7 @@ async create(
   @Put(':id')
   @UseGuards(AuthGuard) // Protection avec JWT
   @UseInterceptors(
-    FilesInterceptor('Photo', 5, {
-      storage: diskStorage({
-        destination: './uploads', // Stocker les fichiers temporairement
-        filename: (req, file, callback) => {
-          callback(null, `${Date.now()}-${file.originalname}`);
-        },
-      }),
-    })
+    FilesInterceptor('Photo', 5, multerOptions)
   )
   async update(@Param('id') id: string,
   @UploadedFiles() files: Express.Multer.File[], 
