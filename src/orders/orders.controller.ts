@@ -41,6 +41,15 @@ export class OrdersController {
    private readonly productsService: ProductsService,
    private readonly usersService: UsersService) {}
 
+  private async requireOrderAccess(orderId: string, req: any) {
+    if (['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) return;
+    const order = await this.ordersService.findOne(orderId);
+    const fields = order?.fields || {};
+    if (fields.buyerId?.[0] !== req.user?.id && fields.farmerId?.[0] !== req.user?.id) {
+      throw new HttpException('Accès refusé à cette commande.', HttpStatus.FORBIDDEN);
+    }
+  }
+
   // Méthode utilitaire pour obtenir l'URL de base d'Airtable
   private getUrl(): string {
     return `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Orders`;
@@ -384,7 +393,9 @@ async getFarmerDetailedStats(
 
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  @UseGuards(AuthGuard)
+  async findOne(@Param('id') id: string, @Request() req) {
+    await this.requireOrderAccess(id, req);
     return this.ordersService.findOne(id);
   }
 
@@ -474,6 +485,9 @@ async getFarmerDetailedStats(
   @Get('byfarmer/:farmerId')
   @UseGuards(AuthGuard)
   async getOrdersByFarmer(@Param('farmerId') farmerId: string, @Request() req) {
+    if (req.user?.id !== farmerId && !['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+      throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+    }
     try {
       // Récupérer les commandes pour l'agriculteur
       const farmerOrders = await this.ordersService.getOrdersByFarmer(farmerId);
@@ -490,7 +504,8 @@ async getFarmerDetailedStats(
 
   @Get('details/:id')
   @UseGuards(AuthGuard)
-  async getOrderPayments(@Param('id') orderId: string) {
+  async getOrderPayments(@Param('id') orderId: string, @Request() req) {
+    await this.requireOrderAccess(orderId, req);
     try {
       // Appeler le service pour récupérer les détails des paiements
       const payments = await this.ordersService.getOrderPayments(orderId);
