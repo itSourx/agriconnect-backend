@@ -248,10 +248,15 @@ async getBuyerStatistics(
 }
 
 @Get('stats/buyers/:buyerId')
+@UseGuards(AuthGuard)
 async getBuyerDetailedStats(
   @Param('buyerId') buyerId: string,
-  @Query() dateRange: { startDate?: string; endDate?: string }
+  @Query() dateRange: { startDate?: string; endDate?: string },
+  @Request() req
 ) {
+  if (req.user?.id !== buyerId && !['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+    throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+  }
   try {
     // Validation des dates
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
@@ -314,10 +319,15 @@ async getBuyerDetailedStats(
 }
 
 @Get('stats/farmers/:farmerId')
+@UseGuards(AuthGuard)
 async getFarmerDetailedStats(
   @Param('farmerId') farmerId: string,
-  @Query() dateRange: { startDate?: string; endDate?: string }
+  @Query() dateRange: { startDate?: string; endDate?: string },
+  @Request() req
 ) {
+  if (req.user?.id !== farmerId && !['ADMIN', 'SUPERADMIN'].includes(req.user?.profile)) {
+    throw new HttpException('Accès refusé.', HttpStatus.FORBIDDEN);
+  }
   try {
     const startDate = dateRange?.startDate ? new Date(dateRange.startDate) : null;
     const endDate = dateRange?.endDate ? new Date(dateRange.endDate) : null;
