@@ -1,4 +1,4 @@
-import {Controller,Logger, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, Request, UseGuards, UseInterceptors, UploadedFiles, UploadedFile } from '@nestjs/common';
+import {Controller,Logger, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, UnauthorizedException, ForbiddenException, Request, UseGuards, UseInterceptors, UploadedFiles, UploadedFile } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express'; // Ajoutez cette ligne
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './create-product.dto';
@@ -44,7 +44,13 @@ export class ProductsController {
   
   @Delete(':id')
   @UseGuards(AuthGuard)
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id') id: string, @Request() req) {
+    const product = await this.productsService.findOne(id);
+    const owner = product?.fields?.farmerId?.[0];
+    if (!['ADMIN', 'SUPERADMIN'].includes(req.user?.profile) &&
+        !(req.user?.profile === 'AGRICULTEUR' && owner === req.user?.id)) {
+      throw new ForbiddenException('Accès refusé.');
+    }
     return this.productsService.delete(id);
   }
 
@@ -80,6 +86,10 @@ export class ProductsController {
       }  
       console.error('profile de l\'agriculteur récupéré :', req.user.id);*/
 
+      if (req.user?.profile !== 'AGRICULTEUR' ||
+          String(data.email).toLowerCase() !== String(req.user?.email).toLowerCase()) {
+        throw new ForbiddenException('Vous ne pouvez créer que vos propres produits.');
+      }
       // Appeler le service pour créer le produit
       const product = await this.productsService.create(data, files);
       return product;
