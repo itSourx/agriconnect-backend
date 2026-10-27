@@ -108,7 +108,10 @@ async create(
     async register(
       @UploadedFiles() files: Express.Multer.File[],
       @Body() createUserDto: CreateUserDto) {
-      return this.usersService.create(createUserDto, files);  
+      if (!['AGRICULTEUR', 'ACHETEUR'].includes(createUserDto.profileType)) {
+        throw new ForbiddenException('Profil non autorisé à l’inscription.');
+      }
+      return this.sanitizeUser(await this.usersService.create(createUserDto, files));
   } // <--- Correction ici : Ajout de la fermeture de la parenthèse
 
   @Put(':id')
