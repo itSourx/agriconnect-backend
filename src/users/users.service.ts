@@ -243,7 +243,7 @@ export class UsersService {
         return response.data.records[0];
       }*/
 
-      console.log('Réponse brute d’Airtable :', response.data);
+      // Never log raw user records, which may contain password hashes.
       if (response.data.records.length > 0) {
         const user = response.data.records[0];
     
@@ -412,7 +412,7 @@ export class UsersService {
         { headers: this.getHeaders() }
       );
       
-      console.error('Données de mise à jour de l’utilisateur :', data);
+      // Never log arbitrary user update payloads.
       return response.data;
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l’utilisateur :', error);
