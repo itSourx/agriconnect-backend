@@ -20,7 +20,7 @@ export class AuthService {
 
     // Récupérer l'utilisateur depuis Airtable
     const user = await this.usersService.findOneByEmail(email);
-    console.log('Données brutes de l’utilisateur :', user);
+    // Never log raw Airtable records containing password hashes.
   
     if (!user) {
       throw new UnauthorizedException('Identifiants incorrects.');
@@ -48,7 +48,7 @@ export class AuthService {
 
     if (!isPasswordValid) {
       // Incrémenter les tentatives infructueuses
-      await this.usersService.incrementFailedAttempts(user.fields.email);
+      // Failed attempts are already recorded by validateUser for invalid passwords.
       console.error('Votre compte sera bloqué après 3 tentatives infructueuses ');
       throw new UnauthorizedException('Identifiants incorrects.');
     }
@@ -111,7 +111,7 @@ export class AuthService {
         },
       };
     } catch (error) {
-      console.error('Erreur lors de la connexion :', error);
+      console.error('Échec de connexion.');
       // Incrémenter les tentatives infructueuses en cas d'échec
       await this.usersService.incrementFailedAttempts(user.fields.email);
       throw error; // Relancer l'erreur pour afficher un message générique au client
